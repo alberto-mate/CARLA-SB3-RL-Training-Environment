@@ -1,5 +1,6 @@
 """ Training VAE """
 import argparse
+import time
 from os.path import join, exists
 from os import mkdir
 
@@ -15,7 +16,7 @@ from torchvision.utils import save_image
 from models import VAE
 
 from utils.misc import save_checkpoint
-from utils.misc import LSIZE, RED_SIZE
+from utils.misc import LSIZE
 ## WARNING : THIS SHOULD BE REPLACE WITH PYTORCH 0.5
 from utils.learning import EarlyStopping
 from utils.learning import ReduceLROnPlateau
@@ -50,6 +51,7 @@ torch.manual_seed(643)
 torch.backends.cudnn.benchmark = True
 
 device = torch.device("cuda" if cuda else "cpu")
+print(device)
 
 
 
@@ -60,7 +62,10 @@ image_seg = '/home/albertomate/Documentos/carla/PythonAPI/my-carla/CarlaEnv/imag
 
 
 # Define the transformations to apply to the images
-transform = transforms.Compose([transforms.ToTensor()])
+transform = transforms.Compose(
+
+    [transforms.ToTensor()]
+                               )
 
 # Create the dataset from the image directory
 dataset = ImagePairDataset(image_rgb, image_seg, transform)
@@ -68,22 +73,18 @@ train_size = int(len(dataset) * 0.8)
 val_size = int(len(dataset) * 0.2)
 train_set, val_set = random_split(dataset, [train_size, val_size])
 
-print(len(train_set))
-print(len(val_set))
 # Create the data loader with a batch size of 32
 batch_size = 32
-train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True)
-val_loader = DataLoader(val_set, batch_size=batch_size, shuffle=True)
+train_loader = DataLoader(train_set, batch_size=batch_size)
+val_loader = DataLoader(val_set, batch_size=batch_size)
 
 
 
 
-model = VAE(3, LSIZE).to(device)
+model = VAE(LSIZE).to(device)
 optimizer = optim.Adam(model.parameters())
 scheduler = ReduceLROnPlateau(optimizer, 'min', factor=0.5, patience=5)
 earlystopping = EarlyStopping('min', patience=30)
-from torchsummary import summary
-summary(model, input_size=(3, 80, 160))
 # Reconstruction + KL divergence losses summed over all elements and batch
 def loss_function(recon_x, x, mu, logsigma):
     """ VAE loss function """
@@ -139,7 +140,7 @@ def test():
     return test_loss
 
 # check vae dir exists, if not, create it
-vae_dir = join(args.logdir, 'vae')
+vae_dir = join(args.logdir, f'vae_{time.time()}')
 os.makedirs(join(vae_dir, 'samples'), exist_ok=True)
 if not exists(vae_dir):
     mkdir(vae_dir)
@@ -159,10 +160,14 @@ if args.reload and exists(reload_file):
 
 
 cur_best = None
-
+acc_train_loss=[]
+acc_val_loss=[]
 for epoch in range(1, args.epochs + 1):
     train_loss = train(epoch)
     val_loss = test()
+
+    acc_train_loss.append(train_loss)
+    acc_val_loss.append(val_loss)
     scheduler.step(val_loss)
     earlystopping.step(val_loss)
 
@@ -194,14 +199,13 @@ for epoch in range(1, args.epochs + 1):
     if earlystopping.stop:
         print("End of Training because of early stopping at epoch {}".format(epoch))
         break
-
 def plot_loss(train_loss, val_loss):
     plt.plot(train_loss, label='Training Loss')
     plt.plot(val_loss, label='Validation Loss')
     plt.xlabel('Epoch')
     plt.ylabel('Loss')
     plt.legend()
-    plt.show()
     plt.savefig(join(vae_dir, 'loss.png'))
+    print(f"Plots generated in {join(vae_dir, 'loss.png')}")
 
-plot_loss(train_loss, val_loss)
+plot_loss(acc_train_loss, acc_val_loss)

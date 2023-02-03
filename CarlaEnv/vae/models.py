@@ -1,12 +1,12 @@
 import torch
 import torch.nn as nn
 
+
 class VAE(nn.Module):
-    def __init__(self, channels=3,latent_size=64):
+    def __init__(self, latent_size=64):
         super().__init__()
 
         image_size = (80, 160)
-
 
         self.encoder = nn.Sequential(
             nn.Conv2d(3, 32, 4, stride=2),
@@ -21,8 +21,8 @@ class VAE(nn.Module):
 
         (self.encoded_H, self.encoded_W), size_hist = self._calculate_spatial_size(image_size, self.encoder)
 
-        self.mean = nn.Linear(self.encoded_H * self.encoded_W  * 256, latent_size)
-        self.logstd = nn.Linear(self.encoded_H * self.encoded_W  * 256, latent_size)
+        self.mean = nn.Linear(self.encoded_H * self.encoded_W * 256, latent_size)
+        self.logstd = nn.Linear(self.encoded_H * self.encoded_W * 256, latent_size)
 
         # latent
         self.latent = nn.Linear(latent_size, self.encoded_H * self.encoded_W * 256)
@@ -49,15 +49,15 @@ class VAE(nn.Module):
         return z
 
     def reparameterize(self, mu, logvar):
-        std = torch.exp(0.5 * logvar)
-        eps = torch.randn_like(std)
-        return eps * std + mu
+        sigma = logvar.exp()
+        eps = torch.randn_like(sigma)
+        return eps.mul(sigma).add_(mu)
 
     def forward(self, x, encode=False, mean=False):
-        mu, logstd = self.encode(x)
-        z = mu
+        mu, logvar = self.encode(x)
+        z = self.reparameterize(mu, logvar)
         x = self.decode(z)
-        return x, mu, logstd
+        return x, mu, logvar
 
     def _calculate_spatial_size(self, image_size, conv_layers):
         ''' Calculate spatial size after convolution layers '''
