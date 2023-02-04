@@ -1,18 +1,16 @@
 import os
 import subprocess
-import time
 import sys
 import glob
 
 import gym
-import pygame
 from gym.utils import seeding
 from pygame.locals import *
 
 from hud import HUD
-from planner import RoadOption, compute_route_waypoints
+from CarlaEnv.agents.navigation.planner import RoadOption, compute_route_waypoints
 from wrappers import *
-
+from vae.utils.misc import LSIZE
 try:
     sys.path.append(glob.glob('../carla/dist/carla-*%d.%d-%s.egg' % (
         sys.version_info.major,
@@ -21,6 +19,7 @@ try:
 except IndexError:
     pass
 import carla
+
 
 
 
@@ -40,11 +39,11 @@ class CarlaRouteEnv(gym.Env):
         in order for this option to work.
 
         And also remember to set the -fps and -synchronous arguments to match the
-        command-line arguments of the simulator (not needed with -start_carla.) 
-        
+        command-line arguments of the simulator (not needed with -start_carla.)
+
         Note that you may also need to add the following line to
         Unreal/CarlaUE4/Config/DefaultGame.ini to have the map included in the package:
-        
+
         +MapsToCook=(FilePath="/Game/Carla/Maps/Town07")
     """
 
@@ -55,15 +54,16 @@ class CarlaRouteEnv(gym.Env):
     def __init__(self, host="127.0.0.1", port=2000,
                  viewer_res=(1280, 720), obs_res=(1280, 720),
                  reward_fn=None, encode_state_fn=None,
-                 synchronous=True, fps=15, action_smoothing=0.0, action_space_type="continious",
+                 fps=15, action_smoothing=0.0, action_space_type="continious",
                  activate_spectator=True,
+                 activate_lidar=False,
                  start_carla=True):
         """
             Initializes a gym-like environment that can be used to interact with CARLA.
 
             Connects to a running CARLA enviromment (tested on version 0.9.5) and
             spwans a lincoln mkz2017 passenger car with automatic transmission.
-            
+
             This vehicle can be controlled using the step() function,
             taking an action that consists of [steering_angle, throttle].
 
@@ -89,7 +89,7 @@ class CarlaRouteEnv(gym.Env):
                 1.0 = max smoothing, 0.0 = no smoothing
             fps (int):
                 FPS of the client. If fps <= 0 then use unbounded FPS.
-                Note: Sensors will have a tick rate of fps when fps > 0, 
+                Note: Sensors will have a tick rate of fps when fps > 0,
                 otherwise they will tick as fast as possible.
             synchronous (bool):
                 If True, run in synchronous mode (read the comment above for more info)
@@ -130,7 +130,6 @@ class CarlaRouteEnv(gym.Env):
             out_width, out_height = obs_res
         self.display = pygame.display.set_mode((width, height), pygame.HWSURFACE | pygame.DOUBLEBUF)
         self.clock = pygame.time.Clock()
-        self.synchronous = synchronous
 
         # Setup gym environment
         self.seed()
@@ -142,18 +141,22 @@ class CarlaRouteEnv(gym.Env):
 
         # self.observation_space = gym.spaces.Box(low=0, high=255, shape=(out_height, out_width, 3), dtype=np.uint8)
         self.observation_space = gym.spaces.Dict({
-            'rgb': gym.spaces.Box(low=0, high=255, shape=(out_height, out_width, 3), dtype=np.uint8),
-            'vehicle_measures': gym.spaces.Box(low=np.array([-1, 0, 0]), high=np.array([1, 1, 120]), dtype=np.float32), # steer, throttle, speed
+            'vae_latent': gym.spaces.Box(low=-4, high=4, shape=(1, LSIZE), dtype=np.float32),
+            'vehicle_measures': gym.spaces.Box(low=np.array([-1, 0, 0]), high=np.array([1, 1, 120]), dtype=np.float32),
+            # steer, throttle, speed
             'maneuver': gym.spaces.Discrete(4),
         })
 
         self.fps = fps
         self.action_smoothing = action_smoothing
+
+
+
         self.encode_state_fn = (lambda x: x) if not callable(encode_state_fn) else encode_state_fn
         self.reward_fn = (lambda x: 0) if not callable(reward_fn) else reward_fn
         self.max_distance = 3000  # m
         self.activate_spectator = activate_spectator
-
+        self.activate_lidar = activate_lidar
 
         self.world = None
         try:
@@ -185,14 +188,13 @@ class CarlaRouteEnv(gym.Env):
             self.dashcam = Camera(self.world, out_width, out_height,
                                   transform=sensor_transforms["dashboard"],
                                   attach_to=self.vehicle, on_recv_image=lambda e: self._set_observation_image(e))
-
             if self.activate_spectator:
                 self.camera = Camera(self.world, width, height,
                                      transform=sensor_transforms["spectator"],
                                      attach_to=self.vehicle, on_recv_image=lambda e: self._set_viewer_image(e))
-            
-            self.lidar = Lidar(self.world, transform=sensor_transforms["lidar"],
-                               attach_to=self.vehicle, on_recv_image=lambda e: self._set_lidar_data(e))
+            if self.activate_lidar:
+                self.lidar = Lidar(self.world, transform=sensor_transforms["lidar"],
+                                   attach_to=self.vehicle, on_recv_image=lambda e: self._set_lidar_data(e))
         except Exception as e:
             self.close()
             raise e
@@ -204,7 +206,6 @@ class CarlaRouteEnv(gym.Env):
         return [seed]
 
     def reset(self, is_training=False):
-        seconds = time.time()
         # Create new route
         self.num_routes_completed = -1
         self.new_route()
@@ -227,11 +228,9 @@ class CarlaRouteEnv(gym.Env):
         self.routes_completed = 0.0
         self.world.tick()
         # Return initial observation
-        time.sleep(0.3)
+        time.sleep(0.4)
         obs = self.step(None)[0]
         time.sleep(0.2)
-        # print("Reset: ", time.time() - seconds)
-        print(self.distance_traveled)
         return obs
 
     def new_route(self):
@@ -294,12 +293,12 @@ class CarlaRouteEnv(gym.Env):
             # view_h, view_w = self.viewer_image.shape[:2]
         obs_h, obs_w = self.observation.shape[:2]
         pos_observation = (self.display.get_size()[0] - obs_w - 10, 10)
-
-        lidar_h, lidar_w = self.lidar_data.shape[:2]
-        pos_lidar = (self.display.get_size()[0] - obs_w - 10, 100)
         self.display.blit(pygame.surfarray.make_surface(self.observation.swapaxes(0, 1)), pos_observation)
-        self.display.blit(pygame.surfarray.make_surface(self.lidar_data.swapaxes(0, 1)), pos_lidar)
 
+        if self.activate_lidar:
+            lidar_h, lidar_w = self.lidar_data.shape[:2]
+            pos_lidar = (self.display.get_size()[0] - obs_w - 10, 100)
+            self.display.blit(pygame.surfarray.make_surface(self.lidar_data.swapaxes(0, 1)), pos_lidar)
 
         # Render HUD
         self.hud.render(self.display, extra_info=self.extra_info)
@@ -357,9 +356,10 @@ class CarlaRouteEnv(gym.Env):
         if self.activate_spectator:
             self.viewer_image = self._get_viewer_image()
 
-        self.lidar_data = self._get_lidar_data()
+        if self.activate_lidar:
+            self.lidar_data = self._get_lidar_data()
 
-        encoded_state = self.encode_state_fn(self.observation)
+        encoded_state = self.encode_state_fn(self)
 
         # Get vehicle transform
         transform = self.vehicle.get_transform()
@@ -412,16 +412,17 @@ class CarlaRouteEnv(gym.Env):
         self.step_count += 1
 
         state = {
-            'rgb': encoded_state,
-            'vehicle_measures': np.array([self.vehicle.control.steer, self.vehicle.control.throttle, self.vehicle.get_speed()], dtype=np.float32), # steer, throttle, speed
+            'vae_latent': encoded_state,
+            'vehicle_measures': np.array(
+                [self.vehicle.control.steer, self.vehicle.control.throttle, self.vehicle.get_speed()],
+                dtype=np.float32),  # steer, throttle, speed
             'maneuver': self.current_road_maneuver.value,
         }
 
-
         # DEBUG: Draw path
-        #self._draw_path(life_time=2.0, skip=10)
+        # self._draw_path(life_time=2.0, skip=10)
         # DEBUG: Draw current waypoint
-        #self.world.debug.draw_point(self.current_waypoint.transform.location + carla.Location(z=1.25), size=0.1,color=carla.Color(0, 255, 255), life_time=2.0, persistent_lines=False)
+        # self.world.debug.draw_point(self.current_waypoint.transform.location + carla.Location(z=1.25), size=0.1,color=carla.Color(0, 255, 255), life_time=2.0, persistent_lines=False)
 
         # Check for ESC press
         pygame.event.pump()
@@ -504,48 +505,5 @@ class CarlaRouteEnv(gym.Env):
         self.lidar_data_buffer = image
 
 
-def reward_fn(env):
-    early_termination = False
-    if early_termination:
-        # If speed is less than 1.0 km/h after 5s, stop
-        if time.time() - env.start_t > 5.0 and env.vehicle.get_speed() < 1.0:
-            env.terminal_state = True
 
-        # If distance from center > 3, stop
-        if env.distance_from_center > 3.0:
-            env.terminal_state = True
 
-    fwd = vector(env.vehicle.get_velocity())
-    wp_fwd = vector(env.current_waypoint.transform.rotation.get_forward_vector())
-    if np.dot(fwd[:2], wp_fwd[:2]) > 0:
-        return env.vehicle.get_speed()
-    return 0
-
-#
-# if __name__ == "__main__":
-#     # Example of using CarlaEnv with keyboard controls
-#     env = CarlaRouteEnv(obs_res=(160, 80), viewer_res=(160*7, 80*7), reward_fn=reward_fn, start_carla=True, fps=15, action_smoothing=0.7)
-#     action = np.zeros(env.action_space.shape[0])
-#     print("Done!")
-#     while True:
-#         env.reset()
-#         while True:
-#             # Process key inputs
-#             pygame.event.pump()
-#             keys = pygame.key.get_pressed()
-#             if keys[K_LEFT] or keys[K_a]:
-#                 action[0] = -0.5
-#             elif keys[K_RIGHT] or keys[K_d]:
-#                 action[0] = 0.5
-#             else:
-#                 action[0] = 0.0
-#             action[0] = np.clip(action[0], -1, 1)
-#             action[1] = 1.0 if keys[K_UP] or keys[K_w] else 0.0
-#
-#             # Take action
-#             obs, _, done, info = env.step(action)
-#             if info["closed"]:  # Check if closed
-#                 exit(0)
-#             env.render()  # Render
-#             if done: break
-#     env.close()

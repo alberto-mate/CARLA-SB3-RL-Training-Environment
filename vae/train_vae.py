@@ -46,7 +46,7 @@ cuda = torch.cuda.is_available()
 
 
 
-torch.manual_seed(643)
+torch.manual_seed(4435)
 # Fix numeric divergence due to bug in Cudnn
 torch.backends.cudnn.benchmark = True
 
@@ -57,15 +57,13 @@ print(device)
 
 
 # Define the location of the image directory
-image_rgb = '/home/albertomate/Documentos/carla/PythonAPI/my-carla/CarlaEnv/images/rgb'
-image_seg = '/home/albertomate/Documentos/carla/PythonAPI/my-carla/CarlaEnv/images/segmentation'
+image_rgb = '/home/albertomate/Documentos/carla/PythonAPI/my-carla/vae/images/rgb'
+image_seg = '/home/albertomate/Documentos/carla/PythonAPI/my-carla/vae/images/segmentation'
 
 
 # Define the transformations to apply to the images
 transform = transforms.Compose(
-
-    [transforms.ToTensor()]
-                               )
+    [transforms.ToTensor()])
 
 # Create the dataset from the image directory
 dataset = ImagePairDataset(image_rgb, image_seg, transform)
@@ -114,7 +112,6 @@ def train(epoch):
         train_loss += loss.item()
         optimizer.step()
         if batch_idx % 20 == 0:
-
             print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                 epoch, batch_idx * len(input_image), len(train_loader)*batch_size,
                 100. * batch_idx / len(train_loader),
@@ -140,7 +137,7 @@ def test():
     return test_loss
 
 # check vae dir exists, if not, create it
-vae_dir = join(args.logdir, f'vae_{time.time()}')
+vae_dir = join(args.logdir, f'vae_{LSIZE}')
 os.makedirs(join(vae_dir, 'samples'), exist_ok=True)
 if not exists(vae_dir):
     mkdir(vae_dir)

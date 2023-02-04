@@ -108,7 +108,7 @@ class CarlaDataCollector:
         self.done = False
         self.recording = False
         self.extra_info = []
-        self.num_saved_observations = 10000
+        self.num_saved_observations = 0
         self.num_images_to_save = num_images_to_save
         self.observation = {key: None for key in ["rgb", "segmentation"]}        # Last received observations
         self.observation_buffer = {key: None for key in ["rgb", "segmentation"]}

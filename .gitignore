@@ -1,5 +1,5 @@
-CarlaEnv/images
+vae/images
 CarlaEnv/tensorboard
-CarlaEnv/vae/log_dir
+vae/log_dir
 
 venv

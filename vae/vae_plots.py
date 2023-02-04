@@ -1,34 +1,16 @@
-import matplotlib.pyplot as plt
-import numpy as np
-import torch
 from torchvision import transforms
-from torchvision.utils import make_grid
 import os
-
-import os, sys
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import numpy as np
-import argparse
 import matplotlib.pyplot as plt
-import matplotlib.animation as animation
-from torchvision.utils import save_image
-import cv2
-import gzip
-import pickle
 import torch
-from os.path import join, exists
-from os import mkdir
 from models import VAE
-
-from models import VAE
-
-LSIZE = 32
+from utils.misc import LSIZE
 
 source_shape = (80, 160, 3)
 target_shape = (80, 160, 3)
 
 z_range = 10
-
+vae_dir = f'/vae/log_dir/vae_{LSIZE}'
 class VAEVisualizer:
     def __init__(self, model, device, image_path):
         self.model = model
@@ -66,11 +48,9 @@ class VAEVisualizer:
                     z = seeded_z.copy()
                     z[z_index] += zi
                     with torch.no_grad():
-                        sample = torch.randn(1, LSIZE).to(device)
+                        sample = torch.tensor(z).to(device)
                         sample = model.decode(sample).cpu()
-                        sample = sample.view(3, 80, 160).cpu().numpy()
-                        generated_image = sample.transpose((1, 2, 0))
-
+                        generated_image = sample.view(3, 80, 160).numpy().transpose((1, 2, 0))
 
                     compound_image[:, j * w:(j + 1) * w, :] = generated_image
                 ax[i, k].imshow(compound_image,vmin=0, vmax=1)
@@ -79,8 +59,8 @@ class VAEVisualizer:
                 ax[i, k].set_yticks([h / 2])
                 ax[i, k].set_yticklabels([z_index])
         fig.text(0.04, 0.5, "z index", va="center", rotation="vertical")
-        fig.suptitle('PLOT')
-        plt.savefig('plot.png', dpi=700)
+        fig.suptitle(f'VAE {LSIZE}')
+        plt.savefig(os.path.join(vae_dir, 'plot_vae.png'), dpi=700)
         print("ploted")
 
 
@@ -93,9 +73,9 @@ if __name__ == '__main__':
 
     device = torch.device("cuda" if cuda else "cpu")
     # Load the VAE model
-    model = VAE(32).to(device)
-    model_dir = '/home/albertomate/Documentos/carla/PythonAPI/my-carla/CarlaEnv/vae/log_dir/vae_1675450899.346522/best.tar'
+    model = VAE(LSIZE).to(device)
 
+    model_dir = os.path.join(vae_dir, 'best.tar')
     if os.path.exists(model_dir):
         state = torch.load(model_dir)
         print("Reloading model at epoch {}"
@@ -108,7 +88,7 @@ if __name__ == '__main__':
     model.eval()
 
     # Initialize the VAE visualizer
-    image_path = '/home/albertomate/Documentos/carla/PythonAPI/my-carla/CarlaEnv/images/rgb/0.png'  # path to the sample image
+    image_path = '/CarlaEnv/vae/images/rgb/600.png'  # path to the sample image
 
 
 
