@@ -28,10 +28,11 @@ ppo_hyperparam = dict(
 )
 
 vae = load_vae(f'/home/albertomate/Documentos/carla/PythonAPI/my-carla/vae/log_dir/vae_{LSIZE}', LSIZE)
-encode_state_fn = create_encode_state_fn(vae)
+encode_state_fn, decode_vae_fn = create_encode_state_fn(vae)
+
 
 env = CarlaRouteEnv(obs_res=(160, 80), viewer_res=(160 * 7, 80 * 7),
-                    reward_fn=reward_fn, encode_state_fn=encode_state_fn,
+                    reward_fn=reward_fn, encode_state_fn=encode_state_fn, decode_vae_fn=decode_vae_fn,
                     start_carla=True, fps=15, action_smoothing=0.7,
                     action_space_type='continuous', activate_spectator=False)
 

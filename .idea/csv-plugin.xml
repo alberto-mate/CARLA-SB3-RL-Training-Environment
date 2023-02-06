@@ -3,20 +3,6 @@
   <component name="CsvFileAttributes">
     <option name="attributeMap">
       <map>
-        <entry key="/CarlaEnv/tensorboard/PPO_1675537243.0560036/progress.csv">
-          <value>
-            <Attribute>
-              <option name="separator" value="," />
-            </Attribute>
-          </value>
-        </entry>
-        <entry key="/CarlaEnv/tensorboard/PPO_1675551545.0376594/progress.csv">
-          <value>
-            <Attribute>
-              <option name="separator" value="," />
-            </Attribute>
-          </value>
-        </entry>
         <entry key="/CarlaEnv/tensorboard/PPO_VAE64_1675553190.3264425/progress.csv">
           <value>
             <Attribute>

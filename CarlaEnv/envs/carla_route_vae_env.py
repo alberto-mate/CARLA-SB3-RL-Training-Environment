@@ -2,10 +2,13 @@ import os
 import subprocess
 import sys
 import glob
+import time
 
 import gym
+import pygame
 from gym.utils import seeding
 from pygame.locals import *
+import numpy as np
 
 from hud import HUD
 from CarlaEnv.agents.navigation.planner import RoadOption, compute_route_waypoints
@@ -53,7 +56,7 @@ class CarlaRouteEnv(gym.Env):
 
     def __init__(self, host="127.0.0.1", port=2000,
                  viewer_res=(1280, 720), obs_res=(1280, 720),
-                 reward_fn=None, encode_state_fn=None,
+                 reward_fn=None, encode_state_fn=None, decode_vae_fn = None,
                  fps=15, action_smoothing=0.0, action_space_type="continious",
                  activate_spectator=True,
                  activate_lidar=False,
@@ -153,6 +156,7 @@ class CarlaRouteEnv(gym.Env):
 
 
         self.encode_state_fn = (lambda x: x) if not callable(encode_state_fn) else encode_state_fn
+        self.decode_vae_fn = (lambda x: x) if not callable(decode_vae_fn) else decode_vae_fn
         self.reward_fn = (lambda x: 0) if not callable(reward_fn) else reward_fn
         self.max_distance = 3000  # m
         self.activate_spectator = activate_spectator
@@ -295,6 +299,9 @@ class CarlaRouteEnv(gym.Env):
         pos_observation = (self.display.get_size()[0] - obs_w - 10, 10)
         self.display.blit(pygame.surfarray.make_surface(self.observation.swapaxes(0, 1)), pos_observation)
 
+        pos_vae_decoded = (self.display.get_size()[0] - 2 * obs_w - 10, 10)
+        self.display.blit(pygame.surfarray.make_surface(self.observation_decoded.swapaxes(0, 1)), pos_vae_decoded)
+
         if self.activate_lidar:
             lidar_h, lidar_w = self.lidar_data.shape[:2]
             pos_lidar = (self.display.get_size()[0] - obs_w - 10, 100)
@@ -360,6 +367,7 @@ class CarlaRouteEnv(gym.Env):
             self.lidar_data = self._get_lidar_data()
 
         encoded_state = self.encode_state_fn(self)
+        self.observation_decoded = self.decode_vae_fn(encoded_state)
 
         # Get vehicle transform
         transform = self.vehicle.get_transform()
