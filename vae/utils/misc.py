@@ -9,7 +9,7 @@ import gym
 # A bit dirty: manually change size of car racing env
 
 # Hardcoded for now
-LSIZE = 32
+LSIZE = 64
 
 
 

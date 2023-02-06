@@ -1,5 +1,2 @@
-vae/images
-CarlaEnv/tensorboard
-vae/log_dir
-
 venv
+**/__pycache__/

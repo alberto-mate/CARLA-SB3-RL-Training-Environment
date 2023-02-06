@@ -8,8 +8,6 @@ from vae_commons import create_encode_state_fn, load_vae
 from rewards import reward_fn
 from callbacks import HParamCallback, TensorboardCallback
 
-
-
 log_dir = './tensorboard/'
 
 dqn_hyperparam = dict(
@@ -22,13 +20,14 @@ dqn_hyperparam = dict(
 )
 
 ppo_hyperparam = dict(
-    learning_rate=0.0001,
+    learning_rate=0.0003,
     gae_lambda=0.99,
     ent_coef=0.01,
     n_epochs=5,
+    n_steps=1024
 )
 
-vae = load_vae(f'/home/albertomate/Documentos/carla/PythonAPI/my-carla/vae/log_dir/vae_{LSIZE}',LSIZE)
+vae = load_vae(f'/home/albertomate/Documentos/carla/PythonAPI/my-carla/vae/log_dir/vae_{LSIZE}', LSIZE)
 encode_state_fn = create_encode_state_fn(vae)
 
 env = CarlaRouteEnv(obs_res=(160, 80), viewer_res=(160 * 7, 80 * 7),
@@ -41,6 +40,9 @@ env = CarlaRouteEnv(obs_res=(160, 80), viewer_res=(160 * 7, 80 * 7),
 # model = DDPG('CnnPolicy', env, verbose=1, action_noise=action_noise, buffer_size=10000, tensorboard_log=log_dir, device='cpu')
 
 model = PPO('MultiInputPolicy', env, verbose=1, tensorboard_log=log_dir, device='cpu', **ppo_hyperparam)
-new_logger = configure(log_dir + f'{model.__class__.__name__}_{time.time()}', ["stdout", "csv", "tensorboard"])
+model_name = f'{model.__class__.__name__}_VAE{LSIZE}_{time.time()}'
+new_logger = configure(log_dir + model_name, ["stdout", "csv", "tensorboard"])
 model.set_logger(new_logger)
-model.learn(total_timesteps=500_000, callback=[HParamCallback(), TensorboardCallback(1)])
+for i in range(1, 6):
+    model.learn(total_timesteps=500_000, callback=[HParamCallback(), TensorboardCallback(1)], reset_num_timesteps=False)
+    model.save(f"{log_dir}{model_name}/{model_name}_{500_000 * i}")

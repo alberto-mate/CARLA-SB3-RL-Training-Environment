@@ -80,9 +80,11 @@ val_loader = DataLoader(val_set, batch_size=batch_size)
 
 
 model = VAE(LSIZE).to(device)
-optimizer = optim.Adam(model.parameters())
-scheduler = ReduceLROnPlateau(optimizer, 'min', factor=0.5, patience=5)
-earlystopping = EarlyStopping('min', patience=30)
+optimizer = optim.Adam(model.parameters(), 0.003)
+scheduler = ReduceLROnPlateau(optimizer, 'min', factor=0.3, patience=10)
+earlystopping = EarlyStopping('min', patience=25)
+
+print(f"Training VAE with latent size {LSIZE}\n")
 # Reconstruction + KL divergence losses summed over all elements and batch
 def loss_function(recon_x, x, mu, logsigma):
     """ VAE loss function """

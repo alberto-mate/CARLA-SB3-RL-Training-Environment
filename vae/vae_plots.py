@@ -10,7 +10,7 @@ source_shape = (80, 160, 3)
 target_shape = (80, 160, 3)
 
 z_range = 10
-vae_dir = f'/vae/log_dir/vae_{LSIZE}'
+vae_dir = f'/home/albertomate/Documentos/carla/PythonAPI/my-carla/vae/log_dir/vae_{LSIZE}'
 class VAEVisualizer:
     def __init__(self, model, device, image_path):
         self.model = model
@@ -88,7 +88,7 @@ if __name__ == '__main__':
     model.eval()
 
     # Initialize the VAE visualizer
-    image_path = '/CarlaEnv/vae/images/rgb/600.png'  # path to the sample image
+    image_path = '/home/albertomate/Documentos/carla/PythonAPI/my-carla/vae/images/rgb/600.png'  # path to the sample image
 
 
 
