@@ -8,11 +8,10 @@ import gym
 import pygame
 from gym.utils import seeding
 from pygame.locals import *
-import numpy as np
 
-from hud import HUD
+from CarlaEnv.hud import HUD
 from CarlaEnv.agents.navigation.planner import RoadOption, compute_route_waypoints
-from wrappers import *
+from CarlaEnv.wrappers import *
 from vae.utils.misc import LSIZE
 try:
     sys.path.append(glob.glob('../carla/dist/carla-*%d.%d-%s.egg' % (
@@ -275,7 +274,7 @@ class CarlaRouteEnv(gym.Env):
         elif self.current_road_maneuver == RoadOption.STRAIGHT:
             maneuver = "Straight"
         else:
-            maneuver = "INVALID(%i)" % self.current_road_maneuver
+            maneuver = "INVALID"
 
         # Add metrics to HUD
         self.extra_info.extend([

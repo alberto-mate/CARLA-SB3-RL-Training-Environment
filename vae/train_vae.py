@@ -51,7 +51,6 @@ torch.manual_seed(4435)
 torch.backends.cudnn.benchmark = True
 
 device = torch.device("cuda" if cuda else "cpu")
-print(device)
 
 
 
@@ -113,7 +112,7 @@ def train(epoch):
         loss.backward()
         train_loss += loss.item()
         optimizer.step()
-        if batch_idx % 20 == 0:
+        if batch_idx % 100 == 0:
             print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                 epoch, batch_idx * len(input_image), len(train_loader)*batch_size,
                 100. * batch_idx / len(train_loader),
@@ -137,6 +136,15 @@ def test():
     test_loss /= len(val_loader)
     print('====> Test set loss: {:.4f}\n'.format(test_loss))
     return test_loss
+
+def plot_loss(train_loss, val_loss):
+    plt.plot(train_loss, label='Training Loss')
+    plt.plot(val_loss, label='Validation Loss')
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.legend()
+    plt.savefig(join(vae_dir, 'loss.png'))
+    print(f"Plots generated in {join(vae_dir, 'loss.png')}")
 
 # check vae dir exists, if not, create it
 vae_dir = join(args.logdir, f'vae_{LSIZE}')
@@ -186,7 +194,7 @@ for epoch in range(1, args.epochs + 1):
         'earlystopping': earlystopping.state_dict()
     }, is_best, filename, best_filename)
 
-
+    plot_loss(acc_train_loss, acc_val_loss)
 
     if args.samples:
         with torch.no_grad():
@@ -198,13 +206,4 @@ for epoch in range(1, args.epochs + 1):
     if earlystopping.stop:
         print("End of Training because of early stopping at epoch {}".format(epoch))
         break
-def plot_loss(train_loss, val_loss):
-    plt.plot(train_loss, label='Training Loss')
-    plt.plot(val_loss, label='Validation Loss')
-    plt.xlabel('Epoch')
-    plt.ylabel('Loss')
-    plt.legend()
-    plt.savefig(join(vae_dir, 'loss.png'))
-    print(f"Plots generated in {join(vae_dir, 'loss.png')}")
 
-plot_loss(acc_train_loss, acc_val_loss)

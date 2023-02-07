@@ -4,7 +4,7 @@ import numpy as np
 min_speed = 20.0  # km/h
 max_speed = 35.0  # km/h
 target_speed = 25.0  # kmh
-max_distance = 3.0  # Max distance from center before terminating
+max_distance = 4.0  # Max distance from center before terminating
 low_speed_timer = 0
 def reward_fn(env):
     terminal_reason = "Running..."

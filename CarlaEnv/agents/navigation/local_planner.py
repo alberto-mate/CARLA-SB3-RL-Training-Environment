@@ -13,8 +13,8 @@ from collections import deque
 import random
 
 import carla
-from agents.navigation.controller import VehiclePIDController
-from agents.tools.misc import distance_vehicle, draw_waypoints
+from CarlaEnv.agents.navigation.controller import VehiclePIDController
+from CarlaEnv.agents.tools.misc import distance_vehicle, draw_waypoints
 
 
 class RoadOption(Enum):
@@ -27,6 +27,8 @@ class RoadOption(Enum):
     STRAIGHT = 3
     VOID = -1
 
+    def __eq__(self, other):
+        return self.value == other.value
 
 
 class LocalPlanner(object):

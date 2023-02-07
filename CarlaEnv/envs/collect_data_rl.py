@@ -2,15 +2,19 @@ import os
 import subprocess
 import sys
 import glob
+import time
 
 import gym
+import pygame
 from gym.utils import seeding
 from pygame.locals import *
+import numpy as np
+from PIL import Image
 
-from hud import HUD
+from CarlaEnv.hud import HUD
 from CarlaEnv.agents.navigation.planner import RoadOption, compute_route_waypoints
-from wrappers import *
-
+from CarlaEnv.wrappers import *
+from vae.utils.misc import LSIZE
 try:
     sys.path.append(glob.glob('../carla/dist/carla-*%d.%d-%s.egg' % (
         sys.version_info.major,
@@ -22,7 +26,8 @@ import carla
 
 
 
-class CarlaRouteEnv(gym.Env):
+
+class CarlaCollectDataRLEnv(gym.Env):
     """
         This is a simple CARLA environment where the goal is to drive in a lap
         around the outskirts of Town07. This environment can be used to compare
@@ -38,11 +43,11 @@ class CarlaRouteEnv(gym.Env):
         in order for this option to work.
 
         And also remember to set the -fps and -synchronous arguments to match the
-        command-line arguments of the simulator (not needed with -start_carla.) 
-        
+        command-line arguments of the simulator (not needed with -start_carla.)
+
         Note that you may also need to add the following line to
         Unreal/CarlaUE4/Config/DefaultGame.ini to have the map included in the package:
-        
+
         +MapsToCook=(FilePath="/Game/Carla/Maps/Town07")
     """
 
@@ -52,17 +57,17 @@ class CarlaRouteEnv(gym.Env):
 
     def __init__(self, host="127.0.0.1", port=2000,
                  viewer_res=(1280, 720), obs_res=(1280, 720),
-                 reward_fn=None, encode_state_fn=None,
+                 reward_fn=None, encode_state_fn=None, decode_vae_fn = None,
+                 num_images_to_save=20000, output_dir="images",
                  fps=15, action_smoothing=0.0, action_space_type="continious",
                  activate_spectator=True,
-                 activate_lidar = False,
                  start_carla=True):
         """
             Initializes a gym-like environment that can be used to interact with CARLA.
 
             Connects to a running CARLA enviromment (tested on version 0.9.5) and
             spwans a lincoln mkz2017 passenger car with automatic transmission.
-            
+
             This vehicle can be controlled using the step() function,
             taking an action that consists of [steering_angle, throttle].
 
@@ -88,7 +93,7 @@ class CarlaRouteEnv(gym.Env):
                 1.0 = max smoothing, 0.0 = no smoothing
             fps (int):
                 FPS of the client. If fps <= 0 then use unbounded FPS.
-                Note: Sensors will have a tick rate of fps when fps > 0, 
+                Note: Sensors will have a tick rate of fps when fps > 0,
                 otherwise they will tick as fast as possible.
             synchronous (bool):
                 If True, run in synchronous mode (read the comment above for more info)
@@ -140,19 +145,33 @@ class CarlaRouteEnv(gym.Env):
 
         # self.observation_space = gym.spaces.Box(low=0, high=255, shape=(out_height, out_width, 3), dtype=np.uint8)
         self.observation_space = gym.spaces.Dict({
-            'rgb': gym.spaces.Box(low=0, high=255, shape=(out_height, out_width, 3), dtype=np.uint8),
-            'vehicle_measures': gym.spaces.Box(low=np.array([-1, 0, 0]), high=np.array([1, 1, 120]), dtype=np.float32), # steer, throttle, speed
+            'vae_latent': gym.spaces.Box(low=-4, high=4, shape=(1, LSIZE), dtype=np.float32),
+            'vehicle_measures': gym.spaces.Box(low=np.array([-1, 0, 0]), high=np.array([1, 1, 120]), dtype=np.float32),
+            # steer, throttle, speed
             'maneuver': gym.spaces.Discrete(4),
         })
 
         self.fps = fps
         self.action_smoothing = action_smoothing
+
+
+
         self.encode_state_fn = (lambda x: x) if not callable(encode_state_fn) else encode_state_fn
+        self.decode_vae_fn = (lambda x: x) if not callable(decode_vae_fn) else decode_vae_fn
         self.reward_fn = (lambda x: 0) if not callable(reward_fn) else reward_fn
         self.max_distance = 3000  # m
         self.activate_spectator = activate_spectator
-        self.activate_lidar = activate_lidar
 
+        self.output_dir = output_dir
+        self.done = False
+        self.recording = False
+        self.extra_info = []
+        self.num_saved_observations = 12_000
+        self.num_images_to_save = num_images_to_save
+
+        self.observation = {key: None for key in ["rgb", "segmentation"]}  # Last received observations
+        self.observation_buffer = {key: None for key in ["rgb", "segmentation"]}
+        self.viewer_image = self.viewer_image_buffer = None  # Last received image to show in the viewer
 
         self.world = None
         try:
@@ -181,18 +200,19 @@ class CarlaRouteEnv(gym.Env):
 
             # Create cameras
 
-            self.dashcam = Camera(self.world, out_width, out_height,
-                                  transform=sensor_transforms["dashboard"],
-                                  attach_to=self.vehicle, camera_type="sensor.camera.semantic_segmentation",
-                                  color_converter=carla.ColorConverter.CityScapesPalette,
-                                  on_recv_image=lambda e: self._set_observation_image(e))
-            if self.activate_spectator:
-                self.camera = Camera(self.world, width, height,
-                                     transform=sensor_transforms["spectator"],
-                                     attach_to=self.vehicle, on_recv_image=lambda e: self._set_viewer_image(e))
-            if self.activate_lidar:
-                self.lidar = Lidar(self.world, transform=sensor_transforms["lidar"],
-                                   attach_to=self.vehicle, on_recv_image=lambda e: self._set_lidar_data(e))
+            self.dashcam_rgb = Camera(self.world, out_width, out_height,
+                                      transform=sensor_transforms["dashboard"],
+                                      attach_to=self.vehicle,
+                                      on_recv_image=lambda e: self._set_observation_image("rgb", e))
+            self.dashcam_seg = Camera(self.world, out_width, out_height,
+                                      transform=sensor_transforms["dashboard"],
+                                      attach_to=self.vehicle,
+                                      on_recv_image=lambda e: self._set_observation_image("segmentation", e),
+                                      camera_type="sensor.camera.semantic_segmentation", custom_palette=True)
+
+            # self.camera = Camera(self.world, width, height,
+            #                      transform=sensor_transforms["spectator"],
+            #                      attach_to=self.vehicle, on_recv_image=lambda e: self._set_viewer_image(e))
         except Exception as e:
             self.close()
             raise e
@@ -204,7 +224,6 @@ class CarlaRouteEnv(gym.Env):
         return [seed]
 
     def reset(self, is_training=False):
-        seconds = time.time()
         # Create new route
         self.num_routes_completed = -1
         self.new_route()
@@ -213,9 +232,9 @@ class CarlaRouteEnv(gym.Env):
         self.terminal_state = False  # Set to True when we want to end episode
         self.closed = False  # Set to True when ESC is pressed
         self.extra_info = []  # List of extra info shown on the HUD
-        self.observation = self.observation_buffer = None  # Last received observation
+        self.observation = {key: None for key in ["rgb", "segmentation"]}  # Last received observations
+        self.observation_buffer = {key: None for key in ["rgb", "segmentation"]}
         self.viewer_image = self.viewer_image_buffer = None  # Last received image to show in the viewer
-        self.lidar_data = self.lidar_data_buffer = None
         self.step_count = 0
 
         # Init metrics
@@ -227,10 +246,9 @@ class CarlaRouteEnv(gym.Env):
         self.routes_completed = 0.0
         self.world.tick()
         # Return initial observation
-        time.sleep(0.3)
+        time.sleep(0.4)
         obs = self.step(None)[0]
         time.sleep(0.2)
-        # print("Reset: ", time.time() - seconds)
         return obs
 
     def new_route(self):
@@ -261,62 +279,45 @@ class CarlaRouteEnv(gym.Env):
 
     def render(self, mode="human"):
 
-        # Get maneuver name
-        if self.current_road_maneuver == RoadOption.LANEFOLLOW:
-            maneuver = "Follow Lane"
-        elif self.current_road_maneuver == RoadOption.LEFT:
-            maneuver = "Left"
-        elif self.current_road_maneuver == RoadOption.RIGHT:
-            maneuver = "Right"
-        elif self.current_road_maneuver == RoadOption.STRAIGHT:
-            maneuver = "Straight"
-        else:
-            maneuver = "INVALID(%i)" % self.current_road_maneuver
+        # Blit image from spectator camera
+        # self.display.blit(pygame.surfarray.make_surface(self.viewer_image.swapaxes(0, 1)), (0, 0))
 
-        # Add metrics to HUD
+        # Superimpose current observation into top-right corner
+        for i, (_, obs) in enumerate(self.observation.items()):
+            obs_h, obs_w = obs.shape[:2]
+            # view_h, view_w = self.viewer_image.shape[:2]
+            view_w = 160*7
+            pos = (view_w - obs_w - 10, obs_h * i + 10 * (i + 1))
+            self.display.blit(pygame.surfarray.make_surface(obs.swapaxes(0, 1)), pos)
+
+        # Save current observations
+        if self.recording and self.vehicle.get_speed() > 2.0 and self.distance_from_center > 0.75:
+            for obs_type, obs in self.observation.items():
+                img = Image.fromarray(obs)
+                img.save(os.path.join(self.output_dir, obs_type, "{}.png".format(self.num_saved_observations)))
+            self.num_saved_observations += 1
+            if self.num_saved_observations >= self.num_images_to_save:
+                self.done = True
+
+        # Render HUDw
         self.extra_info.extend([
-            "Reward: % 19.2f" % self.last_reward,
+            "Images: %i/%i" % (self.num_saved_observations, self.num_images_to_save),
+            "Progress: %.2f%%" % (self.num_saved_observations / self.num_images_to_save * 100.0),
             "",
-            "Maneuver:        % 11s" % maneuver,
-            "Routes completed:    % 7.2f" % self.routes_completed,
             "Distance traveled: % 7d m" % self.distance_traveled,
             "Center deviance:   % 7.2f m" % self.distance_from_center,
             "Avg center dev:    % 7.2f m" % (self.center_lane_deviation / self.step_count),
             "Avg speed:      % 7.2f km/h" % (self.speed_accum / self.step_count),
-            "Total reward:        % 7.2f" % self.total_reward,
         ])
-        if self.activate_spectator:
-            # Blit image from spectator camera
-            self.display.blit(pygame.surfarray.make_surface(self.viewer_image.swapaxes(0, 1)), (0, 0))
-
-            # Superimpose current observation into top-right corner
-            # view_h, view_w = self.viewer_image.shape[:2]
-        obs_h, obs_w = self.observation.shape[:2]
-        pos_observation = (self.display.get_size()[0] - obs_w - 10, 10)
-        self.display.blit(pygame.surfarray.make_surface(self.observation.swapaxes(0, 1)), pos_observation)
-
-        if self.activate_lidar:
-            lidar_h, lidar_w = self.lidar_data.shape[:2]
-            pos_lidar = (self.display.get_size()[0] - obs_w - 10, 100)
-            self.display.blit(pygame.surfarray.make_surface(self.lidar_data.swapaxes(0, 1)), pos_lidar)
-
-
-        # Render HUD
         self.hud.render(self.display, extra_info=self.extra_info)
         self.extra_info = []  # Reset extra info list
 
         # Render to screen
         pygame.display.flip()
 
-        if mode == "rgb_array_no_hud":
-            return self.viewer_image
-        elif mode == "rgb_array":
-            # Turn display surface into rgb_array
-            return np.array(pygame.surfarray.array3d(self.display), dtype=np.uint8).transpose([1, 0, 2])
-        elif mode == "state_pixels":
-            return self.observation
-
     def step(self, action):
+        if self.is_done():
+            raise Exception("Step called after CarlaDataCollector was done.")
         if self.closed:
             raise Exception("CarlaEnv.step() called after the environment was closed." +
                             "Check for info[\"closed\"] == True in the learning loop.")
@@ -335,6 +336,7 @@ class CarlaRouteEnv(gym.Env):
                     1: [0, 1],
                     2: [1, 1],
                     3: [0, 0],
+
                 }
                 steer, throttle = possible_actions[action]
 
@@ -352,14 +354,14 @@ class CarlaRouteEnv(gym.Env):
         self.hud.tick(self.world, self.clock)
 
         # Get most recent observation and viewer image
-        self.observation = self._get_observation()
-        if self.activate_spectator:
-            self.viewer_image = self._get_viewer_image()
+        self.observation["rgb"] = self._get_observation("rgb")
+        self.observation["segmentation"] = self._get_observation("segmentation")
 
-        if self.activate_lidar:
-            self.lidar_data = self._get_lidar_data()
+        #self.viewer_image = self._get_viewer_image()
 
-        encoded_state = self.encode_state_fn(self.observation)
+
+        encoded_state = self.encode_state_fn(self)
+        self.observation_decoded = self.decode_vae_fn(encoded_state)
 
         # Get vehicle transform
         transform = self.vehicle.get_transform()
@@ -412,22 +414,26 @@ class CarlaRouteEnv(gym.Env):
         self.step_count += 1
 
         state = {
-            'rgb': encoded_state,
-            'vehicle_measures': np.array([self.vehicle.control.steer, self.vehicle.control.throttle, self.vehicle.get_speed()], dtype=np.float32), # steer, throttle, speed
+            'vae_latent': encoded_state,
+            'vehicle_measures': np.array(
+                [self.vehicle.control.steer, self.vehicle.control.throttle, self.vehicle.get_speed()],
+                dtype=np.float32),  # steer, throttle, speed
             'maneuver': self.current_road_maneuver.value,
         }
 
-
         # DEBUG: Draw path
-        #self._draw_path(life_time=2.0, skip=10)
+        # self._draw_path(life_time=2.0, skip=10)
         # DEBUG: Draw current waypoint
-        #self.world.debug.draw_point(self.current_waypoint.transform.location + carla.Location(z=1.25), size=0.1,color=carla.Color(0, 255, 255), life_time=2.0, persistent_lines=False)
+        # self.world.debug.draw_point(self.current_waypoint.transform.location + carla.Location(z=1.25), size=0.1,color=carla.Color(0, 255, 255), life_time=2.0, persistent_lines=False)
 
         # Check for ESC press
         pygame.event.pump()
         if pygame.key.get_pressed()[K_ESCAPE]:
             self.close()
             self.terminal_state = True
+
+        if pygame.key.get_pressed()[K_SPACE]:
+            self.recording = not self.recording
         self.render()
 
         info = {
@@ -440,35 +446,14 @@ class CarlaRouteEnv(gym.Env):
         }
         return state, self.last_reward, self.terminal_state, info
 
-    def _draw_path(self, life_time=60.0, skip=0):
-        """
-            Draw a connected path from start of route to end.
-            Green node = start
-            Red node   = point along path
-            Blue node  = destination
-        """
-        for i in range(0, len(self.route_waypoints) - 1, skip + 1):
-            w0 = self.route_waypoints[i][0]
-            w1 = self.route_waypoints[i + 1][0]
-            self.world.debug.draw_line(
-                w0.transform.location + carla.Location(z=0.25),
-                w1.transform.location + carla.Location(z=0.25),
-                thickness=0.1, color=carla.Color(255, 0, 0),
-                life_time=life_time, persistent_lines=False)
-            self.world.debug.draw_point(
-                w0.transform.location + carla.Location(z=0.25), 0.1,
-                carla.Color(0, 255, 0) if i == 0 else carla.Color(255, 0, 0),
-                life_time, False)
-        self.world.debug.draw_point(
-            self.route_waypoints[-1][0].transform.location + carla.Location(z=0.25), 0.1,
-            carla.Color(0, 0, 255),
-            life_time, False)
+    def is_done(self):
+        return self.done
 
-    def _get_observation(self):
-        while self.observation_buffer is None:
+    def _get_observation(self, name):
+        while self.observation_buffer[name] is None:
             pass
-        obs = self.observation_buffer.copy()
-        self.observation_buffer = None
+        obs = self.observation_buffer[name].copy()
+        self.observation_buffer[name] = None
         return obs
 
     def _get_viewer_image(self):
@@ -476,13 +461,6 @@ class CarlaRouteEnv(gym.Env):
             pass
         image = self.viewer_image_buffer.copy()
         self.viewer_image_buffer = None
-        return image
-
-    def _get_lidar_data(self):
-        while self.lidar_data_buffer is None:
-            pass
-        image = self.lidar_data_buffer.copy()
-        self.lidar_data_buffer = None
         return image
 
     def _on_collision(self, event):
@@ -494,12 +472,45 @@ class CarlaRouteEnv(gym.Env):
         text = ["%r" % str(x).split()[-1] for x in lane_types]
         self.hud.notification("Crossed line %s" % " and ".join(text))
 
-    def _set_observation_image(self, image):
-        self.observation_buffer = image
+    def _set_observation_image(self, name, image):
+        self.observation_buffer[name] = image
 
     def _set_viewer_image(self, image):
         self.viewer_image_buffer = image
 
-    def _set_lidar_data(self, image):
-        self.lidar_data_buffer = image
 
+
+
+from stable_baselines3 import PPO
+import time
+from vae.utils.misc import LSIZE
+from CarlaEnv.vae_commons import create_encode_state_fn, load_vae
+
+from CarlaEnv.rewards import reward_fn
+from CarlaEnv.callbacks import HParamCallback, TensorboardCallback
+
+
+
+
+ppo_hyperparam = dict(
+    learning_rate=0.0003,
+    gae_lambda=0.99,
+    ent_coef=0.01,
+    n_epochs=5,
+    n_steps=1024
+)
+
+vae = load_vae(f'/home/albertomate/Documentos/carla/PythonAPI/my-carla/vae/log_dir/vae_{LSIZE}', LSIZE)
+encode_state_fn, decode_vae_fn = create_encode_state_fn(vae)
+
+
+env = CarlaCollectDataRLEnv(obs_res=(160, 80), viewer_res=(160 * 7, 80 * 7),
+                    reward_fn=reward_fn, encode_state_fn=encode_state_fn, decode_vae_fn=decode_vae_fn,
+                    start_carla=True, fps=10, action_smoothing=0.7,
+                    action_space_type='continuous', activate_spectator=False, output_dir='/home/albertomate/Documentos/carla/PythonAPI/my-carla/vae/images')
+
+
+# model = PPO('MultiInputPolicy', env, verbose=1, device='cpu', **ppo_hyperparam)
+model = PPO.load("/home/albertomate/Documentos/carla/PythonAPI/my-carla/CarlaEnv/tensorboard/PPO_VAE64_1675553190.3264425/PPO_VAE64_1675553190.3264425_1500000", env=env, device='cpu')
+model_name = f'{model.__class__.__name__}_VAE{LSIZE}_{time.time()}'
+model.learn(total_timesteps=500_000, callback=[HParamCallback(), TensorboardCallback(1)], reset_num_timesteps=False)

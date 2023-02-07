@@ -263,7 +263,7 @@ class Camera(CarlaActorBase):
                     7: [50, 64, 128],  # Roads
                     8: [255, 255, 255],  # Sidewalks
                     9: [0, 0, 0],  # Vegetation
-                    10: [0, 0, 255],  # Vehicles
+                    10: [0, 0, 0],  # Vehicles
                     11: [0, 0, 0],  # Walls
                     12: [0, 0, 0]  # TrafficSigns
                 }

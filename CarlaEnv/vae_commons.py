@@ -50,7 +50,6 @@ def create_encode_state_fn(vae):
             sample = torch.tensor(z)
             sample = vae.decode(sample).cpu()
             generated_image = sample.view(3, 80, 160).numpy().transpose((1, 2, 0)) * 255
-            print(np.sum(generated_image > 1))
         return generated_image
 
 
