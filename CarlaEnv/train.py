@@ -8,7 +8,7 @@ from vae_commons import create_encode_state_fn, load_vae
 from rewards import reward_fn
 from callbacks import HParamCallback, TensorboardCallback
 
-log_dir = './tensorboard/'
+log_dir = 'tensorboard/'
 
 dqn_hyperparam = dict(
     batch_size=100,
