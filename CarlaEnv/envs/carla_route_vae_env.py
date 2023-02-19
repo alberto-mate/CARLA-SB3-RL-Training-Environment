@@ -21,6 +21,8 @@ try:
 except IndexError:
     pass
 import carla
+from collections import deque
+
 
 
 
@@ -54,9 +56,11 @@ class CarlaRouteEnv(gym.Env):
     }
 
     def __init__(self, host="127.0.0.1", port=2000,
-                 viewer_res=(1280, 720), obs_res=(1280, 720),
-                 reward_fn=None, encode_state_fn=None, decode_vae_fn = None,
-                 fps=15, action_smoothing=0.0, action_space_type="continious",
+                 viewer_res=(1120, 560), obs_res=(160, 80),
+                 reward_fn=None,
+                 observation_space = None,
+                 encode_state_fn=None, decode_vae_fn = None,
+                 fps=15, action_smoothing=0.0, action_space_type="continuous",
                  activate_spectator=True,
                  activate_lidar=False,
                  start_carla=True):
@@ -134,7 +138,7 @@ class CarlaRouteEnv(gym.Env):
         self.clock = pygame.time.Clock()
 
         # Setup gym environment
-        self.seed()
+        self.seed(100)
         self.action_space_type = action_space_type
         if self.action_space_type == "continuous":
             self.action_space = gym.spaces.Box(np.array([-1, 0]), np.array([1, 1]), dtype=np.float32)  # steer, throttle
@@ -142,12 +146,7 @@ class CarlaRouteEnv(gym.Env):
             self.action_space = gym.spaces.Discrete(4)
 
         # self.observation_space = gym.spaces.Box(low=0, high=255, shape=(out_height, out_width, 3), dtype=np.uint8)
-        self.observation_space = gym.spaces.Dict({
-            'vae_latent': gym.spaces.Box(low=-4, high=4, shape=(1, LSIZE), dtype=np.float32),
-            'vehicle_measures': gym.spaces.Box(low=np.array([-1, 0, 0]), high=np.array([1, 1, 120]), dtype=np.float32),
-            # steer, throttle, speed
-            'maneuver': gym.spaces.Discrete(4),
-        })
+        self.observation_space = observation_space
 
         self.fps = fps
         self.action_smoothing = action_smoothing
@@ -155,7 +154,7 @@ class CarlaRouteEnv(gym.Env):
 
 
         self.encode_state_fn = (lambda x: x) if not callable(encode_state_fn) else encode_state_fn
-        self.decode_vae_fn = (lambda x: x) if not callable(decode_vae_fn) else decode_vae_fn
+        self.decode_vae_fn = None if not callable(decode_vae_fn) else decode_vae_fn
         self.reward_fn = (lambda x: 0) if not callable(reward_fn) else reward_fn
         self.max_distance = 3000  # m
         self.activate_spectator = activate_spectator
@@ -246,9 +245,11 @@ class CarlaRouteEnv(gym.Env):
 
         # Generate waypoints along the lap
         self.start_wp, self.end_wp = [self.world.map.get_waypoint(spawn.location) for spawn in
-                                      np.random.choice(self.world.map.get_spawn_points(), 2, replace=False)]
+                                      self.np_random.choice(self.world.map.get_spawn_points(), 2, replace=False)]
 
         self.route_waypoints = compute_route_waypoints(self.world.map, self.start_wp, self.end_wp, resolution=1.0)
+        self.distance_from_center_history = deque(maxlen=15)
+
         self.current_waypoint_index = 0
         self.num_routes_completed += 1
         self.vehicle.set_transform(self.start_wp.transform)
@@ -299,7 +300,8 @@ class CarlaRouteEnv(gym.Env):
         self.display.blit(pygame.surfarray.make_surface(self.observation.swapaxes(0, 1)), pos_observation)
 
         pos_vae_decoded = (self.display.get_size()[0] - 2 * obs_w - 10, 10)
-        self.display.blit(pygame.surfarray.make_surface(self.observation_decoded.swapaxes(0, 1)), pos_vae_decoded)
+        if self.decode_vae_fn:
+            self.display.blit(pygame.surfarray.make_surface(self.observation_decoded.swapaxes(0, 1)), pos_vae_decoded)
 
         if self.activate_lidar:
             lidar_h, lidar_w = self.lidar_data.shape[:2]
@@ -365,8 +367,6 @@ class CarlaRouteEnv(gym.Env):
         if self.activate_lidar:
             self.lidar_data = self._get_lidar_data()
 
-        encoded_state = self.encode_state_fn(self)
-        self.observation_decoded = self.decode_vae_fn(encoded_state)
 
         # Get vehicle transform
         transform = self.vehicle.get_transform()
@@ -412,19 +412,19 @@ class CarlaRouteEnv(gym.Env):
         # Terminal on max distance
         if self.distance_traveled >= self.max_distance:
             self.terminal_state = True
+        encoded_state = self.encode_state_fn(self)
+        if self.decode_vae_fn:
+            self.observation_decoded = self.decode_vae_fn(encoded_state['vae_latent'])
+
+        self.distance_from_center_history.append(self.distance_from_center)
 
         # Call external reward fn
         self.last_reward = self.reward_fn(self)
         self.total_reward += self.last_reward
         self.step_count += 1
 
-        state = {
-            'vae_latent': encoded_state,
-            'vehicle_measures': np.array(
-                [self.vehicle.control.steer, self.vehicle.control.throttle, self.vehicle.get_speed()],
-                dtype=np.float32),  # steer, throttle, speed
-            'maneuver': self.current_road_maneuver.value,
-        }
+
+
 
         # DEBUG: Draw path
         # self._draw_path(life_time=2.0, skip=10)
@@ -446,7 +446,7 @@ class CarlaRouteEnv(gym.Env):
             'avg_center_dev': (self.center_lane_deviation / self.step_count),
             'avg_speed': (self.speed_accum / self.step_count)
         }
-        return state, self.last_reward, self.terminal_state, info
+        return encoded_state, self.last_reward, self.terminal_state, info
 
     def _draw_path(self, life_time=60.0, skip=0):
         """

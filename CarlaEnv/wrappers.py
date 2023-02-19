@@ -27,12 +27,14 @@ def get_actor_display_name(actor, truncate=250):
 
 def angle_diff(v0, v1):
     """ Calculates the signed angle difference (-pi, pi] between 2D vector v0 and v1 """
-    angle = np.arctan2(v1[1], v1[0]) - np.arctan2(v0[1], v0[0])
-    if angle > np.pi:
-        angle -= 2 * np.pi
-    elif angle <= -np.pi:
-        angle += 2 * np.pi
-    return angle
+    v0_u = v0 / np.linalg.norm(v0)
+    v1_u = v1 / np.linalg.norm(v1)
+    dot_product = np.dot(v0_u, v1_u)
+    angle = np.arccos(dot_product)
+    if angle >= 1.72:
+        return 0
+    else:
+        return angle
 
 
 def distance_to_line(A, B, p):
@@ -54,7 +56,8 @@ def vector(v):
 sensor_transforms = {
     "spectator": carla.Transform(carla.Location(x=-5.5, z=2.8), carla.Rotation(pitch=-15)),
     "dashboard": carla.Transform(carla.Location(x=1.6, z=1.7)),
-    "lidar": carla.Transform(carla.Location(x=0.0, z=2.4))
+    "lidar": carla.Transform(carla.Location(x=0.0, z=2.4)),
+    "birdview": carla.Transform(carla.Location(x=120.0, y=100, z=200),  carla.Rotation(pitch=-90))
 }
 
 
@@ -319,6 +322,11 @@ class Vehicle(CarlaActorBase):
         """
         velocity = self.get_velocity()
         return 3.6 * np.sqrt(velocity.x ** 2 + velocity.y ** 2 + velocity.z ** 2)
+
+    def get_angle(self, waypoint):
+        fwd = vector(self.get_velocity())
+        wp_fwd = vector(waypoint.transform.rotation.get_forward_vector())
+        return angle_diff(fwd, wp_fwd)
 
     def get_closest_waypoint(self):
         return self.world.map.get_waypoint(self.get_transform().location, project_to_road=True)

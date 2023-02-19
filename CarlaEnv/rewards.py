@@ -4,7 +4,7 @@ import numpy as np
 min_speed = 20.0  # km/h
 max_speed = 35.0  # km/h
 target_speed = 25.0  # kmh
-max_distance = 4.0  # Max distance from center before terminating
+max_distance = 3.0  # Max distance from center before terminating
 low_speed_timer = 0
 def reward_fn(env):
     terminal_reason = "Running..."
@@ -13,7 +13,7 @@ def reward_fn(env):
     global low_speed_timer
     low_speed_timer += 1.0 / env.fps
     speed = env.vehicle.get_speed()
-    if low_speed_timer > 5.0 and speed < 1.0:
+    if low_speed_timer > 5.0 and speed < 1.0 and env.current_waypoint_index >= 1:
         env.terminal_state = True
         terminal_reason = "Vehicle stopped"
 
@@ -66,13 +66,16 @@ def reward_fn5(env):
         speed_reward = 1.0  # Return 1 for speeds in range [min_speed, target_speed]
 
     # Interpolated from 1 when centered to 0 when 3 m from center
-    centering_factor = max(1.0 - env.distance_from_center / max_distance, 0.0)
+    centering_factor = max(1.0 - (env.distance_from_center - 0.22) / max_distance, 0.0)
 
     # Interpolated from 1 when aligned with the road to 0 when +/- 20 degress of road
-    angle_factor = max(1.0 - abs(angle / np.deg2rad(20)), 0.0)
+    angle_factor = max(1.0 - abs(angle / np.deg2rad(90)), 0.0)
+
+    std = np.std(env.distance_from_center_history)
+    distance_factor = max(1.0 - abs(std / 0.6), 0.0)
 
     # Final reward
-    reward = speed_reward * centering_factor * angle_factor + 2 * env.routes_completed
+    reward = speed_reward * centering_factor * angle_factor * distance_factor
 
     return reward
 
