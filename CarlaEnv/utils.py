@@ -4,6 +4,7 @@ import cv2
 import numpy as np
 import scipy.signal
 import tensorflow as tf
+import math
 
 
 class VideoRecorder():
@@ -76,3 +77,29 @@ class TensorboardCallback(BaseCallback):
             self.logger.record("custom/avg_speed", self.locals['infos'][0]['avg_speed'])
             self.logger.dump(self.num_timesteps)
         return True
+
+
+def lr_schedule(initial_value: float, end_value: float, rate: float):
+    """
+    Learning rate schedule:
+        Exponential decay by factors of 10 from initial_value to end_value.
+
+    :param initial_value: Initial learning rate.
+    :param rate: Exponential rate of decay. High values mean fast early drop in LR
+    :param end_value: The final value of the learning rate.
+    :return: schedule that computes current learning rate depending on remaining progress
+    """
+
+    def func(progress_remaining: float) -> float:
+        """
+        Progress will decrease from 1 (beginning) to 0.
+
+        :param progress_remaining: A float value between 0 and 1 that represents the remaining progress.
+        :return: The current learning rate.
+        """
+        if progress_remaining <= 0:
+            return end_value
+
+        return end_value + (initial_value - end_value) * (10 ** (rate * math.log10(progress_remaining)))
+
+    return func

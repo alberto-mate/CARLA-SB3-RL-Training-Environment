@@ -27,14 +27,20 @@ def get_actor_display_name(actor, truncate=250):
 
 def angle_diff(v0, v1):
     """ Calculates the signed angle difference (-pi, pi] between 2D vector v0 and v1 """
-    v0_u = v0 / np.linalg.norm(v0)
-    v1_u = v1 / np.linalg.norm(v1)
-    dot_product = np.dot(v0_u, v1_u)
-    angle = np.arccos(dot_product)
-    if angle >= 1.72:
+    v0_xy = v0[:2]
+    v1_xy = v1[:2]
+    v0_xy_norm = np.linalg.norm(v0_xy)
+    v1_xy_norm = np.linalg.norm(v1_xy)
+    if v0_xy_norm == 0 or v1_xy_norm == 0:
         return 0
-    else:
-        return angle
+
+    v0_xy_u = v0_xy / v0_xy_norm
+    v1_xy_u = v1_xy / v1_xy_norm
+    dot_product = np.dot(v0_xy_u, v1_xy_u)
+    angle = np.arccos(dot_product)
+    if angle >= 2:
+        return 0
+    return angle
 
 
 def distance_to_line(A, B, p):

@@ -34,7 +34,6 @@ def preprocess_frame(frame):
     return frame
 
 
-
 def create_encode_state_fn(vae, measurements_to_include):
     """
         Returns a function that encodes the current state of
@@ -55,7 +54,7 @@ def create_encode_state_fn(vae, measurements_to_include):
         if measure_flags[1]: low.append(0), high.append(1)
         if measure_flags[2]: low.append(0), high.append(120)
         if measure_flags[3]: low.append(-3.14), high.append(3.14)
-        observation_space['vehicle_measures'] = gym.spaces.Box(low=np.array(low), high=np.array(high),dtype=np.float32)
+        observation_space['vehicle_measures'] = gym.spaces.Box(low=np.array(low), high=np.array(high), dtype=np.float32)
         if measure_flags[4]: low.append(-3.14), high.append(3.14)
         observation_space['maneuver'] = gym.spaces.Discrete(4)
 

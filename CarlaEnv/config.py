@@ -1,20 +1,29 @@
-
 import torch as th
+
+from CarlaEnv.utils import lr_schedule
 
 _CONFIG_PPO = {
     "algorithm": "PPO",
     "algorithm_params": dict(
-        learning_rate=0.0003,
-        gae_lambda=0.99,
-        ent_coef=0.01,
-        n_epochs=5,
-        n_steps=1024,
+        learning_rate=lr_schedule(10e-4, 10e-6, 2),
+        gae_lambda=0.95,
+        clip_range=0.3,
+        ent_coef=0.1,
+        n_epochs=10,
+        n_steps=512,
         policy_kwargs=dict(activation_fn=th.nn.ReLU,
                            net_arch=[dict(pi=[500, 300], vf=[500, 300])])
     ),
+    "state": ["steer", "throttle", "speed", "angle_next_waypoint", "maneuver"],
+    "vae_model": "vae_64",
     "action_smoothing": 0.75,
-    "reward": "reward_fn5",
-    "reward_params": dict(),
+    "reward_fn": "reward_fn5",
+    "reward_params": dict(
+        min_speed=20.0,  # km/h
+        max_speed=35.0,  # km/h
+        target_speed=25.0,  # kmh
+        max_distance=3.0,  # Max distance from center before terminating
+    ),
     "obs_res": (160, 80),
 }
 

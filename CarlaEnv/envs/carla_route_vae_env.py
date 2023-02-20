@@ -13,6 +13,7 @@ from CarlaEnv.hud import HUD
 from CarlaEnv.agents.navigation.planner import RoadOption, compute_route_waypoints
 from CarlaEnv.wrappers import *
 from vae.utils.misc import LSIZE
+
 try:
     sys.path.append(glob.glob('../carla/dist/carla-*%d.%d-%s.egg' % (
         sys.version_info.major,
@@ -22,9 +23,6 @@ except IndexError:
     pass
 import carla
 from collections import deque
-
-
-
 
 
 class CarlaRouteEnv(gym.Env):
@@ -58,8 +56,8 @@ class CarlaRouteEnv(gym.Env):
     def __init__(self, host="127.0.0.1", port=2000,
                  viewer_res=(1120, 560), obs_res=(160, 80),
                  reward_fn=None,
-                 observation_space = None,
-                 encode_state_fn=None, decode_vae_fn = None,
+                 observation_space=None,
+                 encode_state_fn=None, decode_vae_fn=None,
                  fps=15, action_smoothing=0.0, action_space_type="continuous",
                  activate_spectator=True,
                  activate_lidar=False,
@@ -151,8 +149,6 @@ class CarlaRouteEnv(gym.Env):
         self.fps = fps
         self.action_smoothing = action_smoothing
 
-
-
         self.encode_state_fn = (lambda x: x) if not callable(encode_state_fn) else encode_state_fn
         self.decode_vae_fn = None if not callable(decode_vae_fn) else decode_vae_fn
         self.reward_fn = (lambda x: 0) if not callable(reward_fn) else reward_fn
@@ -230,7 +226,7 @@ class CarlaRouteEnv(gym.Env):
         self.routes_completed = 0.0
         self.world.tick()
         # Return initial observation
-        time.sleep(0.4)
+        time.sleep(0.2)
         obs = self.step(None)[0]
         time.sleep(0.2)
         return obs
@@ -240,19 +236,26 @@ class CarlaRouteEnv(gym.Env):
         self.vehicle.control.steer = float(0.0)
         self.vehicle.control.throttle = float(0.0)
         # self.vehicle.control.brake = float(0.0)
-        self.vehicle.tick()
+        # self.vehicle.tick()
         self.vehicle.set_simulate_physics(False)  # Reset the car's physics
 
         # Generate waypoints along the lap
-        self.start_wp, self.end_wp = [self.world.map.get_waypoint(spawn.location) for spawn in
-                                      self.np_random.choice(self.world.map.get_spawn_points(), 2, replace=False)]
+        route_length = 1
+        while route_length <= 1:
+            self.start_wp, self.end_wp = [self.world.map.get_waypoint(spawn.location) for spawn in
+                                          self.np_random.choice(self.world.map.get_spawn_points(), 2, replace=False)]
 
-        self.route_waypoints = compute_route_waypoints(self.world.map, self.start_wp, self.end_wp, resolution=1.0)
+            self.start_wp = self.world.map.get_waypoint(self.world.map.get_spawn_points()[3].location)
+            self.end_wp = self.world.map.get_waypoint(self.world.map.get_spawn_points()[1].location)
+            self.route_waypoints = compute_route_waypoints(self.world.map, self.start_wp, self.end_wp, resolution=1.0)
+            route_length = len(self.route_waypoints)
+
         self.distance_from_center_history = deque(maxlen=15)
 
         self.current_waypoint_index = 0
         self.num_routes_completed += 1
         self.vehicle.set_transform(self.start_wp.transform)
+        time.sleep(0.2)
         self.vehicle.set_simulate_physics(True)
 
     def close(self):
@@ -328,12 +331,11 @@ class CarlaRouteEnv(gym.Env):
             raise Exception("CarlaEnv.step() called after the environment was closed." +
                             "Check for info[\"closed\"] == True in the learning loop.")
 
-        # Create new route on route completion
-        if self.current_waypoint_index >= len(self.route_waypoints) - 1:
-            self.new_route()
-
         # Take action
         if action is not None:
+            # Create new route on route completion
+            if self.current_waypoint_index >= len(self.route_waypoints) - 1:
+                self.new_route()
             if self.action_space_type == "continuous":
                 steer, throttle = [float(a) for a in action]
             elif self.action_space_type == "discrete":
@@ -342,7 +344,6 @@ class CarlaRouteEnv(gym.Env):
                     1: [0, 1],
                     2: [1, 1],
                     3: [0, 0],
-
                 }
                 steer, throttle = possible_actions[action]
 
@@ -366,7 +367,6 @@ class CarlaRouteEnv(gym.Env):
 
         if self.activate_lidar:
             self.lidar_data = self._get_lidar_data()
-
 
         # Get vehicle transform
         transform = self.vehicle.get_transform()
@@ -412,19 +412,18 @@ class CarlaRouteEnv(gym.Env):
         # Terminal on max distance
         if self.distance_traveled >= self.max_distance:
             self.terminal_state = True
-        encoded_state = self.encode_state_fn(self)
-        if self.decode_vae_fn:
-            self.observation_decoded = self.decode_vae_fn(encoded_state['vae_latent'])
 
         self.distance_from_center_history.append(self.distance_from_center)
 
         # Call external reward fn
         self.last_reward = self.reward_fn(self)
         self.total_reward += self.last_reward
+
+        # Encode the state
+        encoded_state = self.encode_state_fn(self)
+        if self.decode_vae_fn:
+            self.observation_decoded = self.decode_vae_fn(encoded_state['vae_latent'])
         self.step_count += 1
-
-
-
 
         # DEBUG: Draw path
         # self._draw_path(life_time=2.0, skip=10)
@@ -510,7 +509,3 @@ class CarlaRouteEnv(gym.Env):
 
     def _set_lidar_data(self, image):
         self.lidar_data_buffer = image
-
-
-
-
