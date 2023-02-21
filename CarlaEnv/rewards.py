@@ -42,7 +42,7 @@ def create_reward_fn(reward_fn):
         else:
             low_speed_timer = 0.0
             reward -= 10
-            print(terminal_reason)
+            print(f"{env.episode_idx}| Terminal: ",terminal_reason)
 
 
         env.extra_info.extend([
@@ -83,7 +83,7 @@ def reward_fn5(env):
     angle_factor = max(1.0 - abs(angle / np.deg2rad(90)), 0.0)
 
     std = np.std(env.distance_from_center_history)
-    distance_factor = max(1.0 - abs(std / 0.6), 0.0)
+    distance_factor = max(1.0 - abs(std / 0.4), 0.0)
 
     # Final reward
     reward = speed_reward * centering_factor * angle_factor * distance_factor

@@ -443,7 +443,6 @@ class CarlaRouteEnv(gym.Env):
             self.close()
             self.terminal_state = True
         self.render()
-        print(encoded_state['waypoints'])
         info = {
             "closed": self.closed,
             'total_reward': self.total_reward,
@@ -501,7 +500,8 @@ class CarlaRouteEnv(gym.Env):
 
     def _on_collision(self, event):
         self.hud.notification("Collision with {}".format(get_actor_display_name(event.other_actor)))
-        self.terminal_state = True
+        if get_actor_display_name(event.other_actor) != "Road":
+            self.terminal_state = True
 
     def _on_invasion(self, event):
         lane_types = set(x.type for x in event.crossed_lane_markings)

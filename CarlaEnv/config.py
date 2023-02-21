@@ -7,8 +7,8 @@ _CONFIG_PPO = {
     "algorithm_params": dict(
         learning_rate=lr_schedule(10e-4, 10e-6, 2),
         gae_lambda=0.95,
-        clip_range=0.3,
-        ent_coef=0.1,
+        clip_range=0.2,
+        ent_coef=0.05,
         n_epochs=10,
         n_steps=512,
         policy_kwargs=dict(activation_fn=th.nn.ReLU,
