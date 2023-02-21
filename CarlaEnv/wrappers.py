@@ -25,8 +25,41 @@ def get_actor_display_name(actor, truncate=250):
     return (name[:truncate - 1] + u"\u2026") if len(name) > truncate else name
 
 
+def get_displacement_vector(car_pos, waypoint_pos, theta):
+    """
+    Calculates the displacement vector from the car to a waypoint, taking into account the orientation of the car.
+
+    Parameters:
+        car_pos (numpy.ndarray): 1D numpy array of shape (3,) representing the x, y, z coordinates of the car.
+        waypoint_pos (numpy.ndarray): 1D numpy array of shape (3,) representing the x, y, z coordinates of the waypoint.
+        theta (float): Angle in radians representing the orientation of the car.
+
+    Returns:
+        numpy.ndarray: 1D numpy array of shape (3,) representing the displacement vector from the car to the waypoint,
+        with the car as the origin and the y-axis pointing in the direction of the car's orientation.
+    """
+    # Calculate the relative position of the waypoint with respect to the car
+    relative_pos = waypoint_pos - car_pos
+
+    theta = theta
+    # Construct the rotation transformation matrix
+    R = np.array([[np.cos(theta), np.sin(theta), 0],
+                  [-np.sin(theta), np.cos(theta), 0],
+                  [0, 0, 1]])
+
+    # Apply the rotation matrix to the relative position vector
+    waypoint_car = R @ relative_pos
+    # Set values very close to zero to exactly zero
+    waypoint_car[np.abs(waypoint_car) < 10e-10] = 0
+
+    return waypoint_car
+
+
 def angle_diff(v0, v1):
-    """ Calculates the signed angle difference (-pi, pi] between 2D vector v0 and v1 """
+    """
+    Calculates the signed angle difference between 2D vectors v0 and v1.
+    It returns the angle difference in radians between v0 and v1.
+    """
     v0_xy = v0[:2]
     v1_xy = v1[:2]
     v0_xy_norm = np.linalg.norm(v0_xy)
@@ -38,7 +71,7 @@ def angle_diff(v0, v1):
     v1_xy_u = v1_xy / v1_xy_norm
     dot_product = np.dot(v0_xy_u, v1_xy_u)
     angle = np.arccos(dot_product)
-    if angle >= 2:
+    if abs(angle) >= 2.5:
         return 0
     return angle
 
@@ -63,7 +96,7 @@ sensor_transforms = {
     "spectator": carla.Transform(carla.Location(x=-5.5, z=2.8), carla.Rotation(pitch=-15)),
     "dashboard": carla.Transform(carla.Location(x=1.6, z=1.7)),
     "lidar": carla.Transform(carla.Location(x=0.0, z=2.4)),
-    "birdview": carla.Transform(carla.Location(x=120.0, y=100, z=200),  carla.Rotation(pitch=-90))
+    "birdview": carla.Transform(carla.Location(x=120.0, y=100, z=200), carla.Rotation(pitch=-90))
 }
 
 

@@ -14,7 +14,7 @@ _CONFIG_PPO = {
         policy_kwargs=dict(activation_fn=th.nn.ReLU,
                            net_arch=[dict(pi=[500, 300], vf=[500, 300])])
     ),
-    "state": ["steer", "throttle", "speed", "angle_next_waypoint", "maneuver"],
+    "state": ["steer", "throttle", "speed", "angle_next_waypoint", "maneuver", "waypoints"],
     "vae_model": "vae_64",
     "action_smoothing": 0.75,
     "reward_fn": "reward_fn5",
