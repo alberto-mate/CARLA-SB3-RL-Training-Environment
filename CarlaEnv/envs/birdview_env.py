@@ -8,6 +8,7 @@ import pygame
 from PIL import Image
 from pygame.locals import *
 
+from CarlaEnv.agents.tools.misc import draw_waypoints
 from CarlaEnv.hud import HUD
 from CarlaEnv.wrappers import *
 import time
@@ -141,9 +142,9 @@ class CarlaBirdView:
             self.world.on_tick(self.hud.on_world_tick)
 
             # Create cameras
-            self.camera  = Camera(self.world, width, height,
-                                  transform=sensor_transforms["birdview"],
-                                  attach_to=None, on_recv_image=lambda e: self._set_viewer_image(e))
+            # self.camera  = Camera(self.world, width, height,
+            #                       transform=sensor_transforms["birdview"],
+            #                       attach_to=None, on_recv_image=lambda e: self._set_viewer_image(e))
 
 
 
@@ -164,12 +165,18 @@ class CarlaBirdView:
 
     def render(self):
         # Blit image from spectator camera
-        self.display.blit(pygame.surfarray.make_surface(self.viewer_image.swapaxes(0, 1)), (0, 0))
+        #self.display.blit(pygame.surfarray.make_surface(self.viewer_image.swapaxes(0, 1)), (0, 0))
         # self.world.debug.draw_point(self.current_waypoint.transform.location + carla.Location(z=1.25), size=0.1,color=carla.Color(0, 255, 255), life_time=2.0, persistent_lines=False)
-
+        #draw_waypoints(self.world, [self.world.map.get_waypoint(spawn.location) for spawn in self.world.map.get_spawn_points()])
         for i, point in enumerate(self.world.map.get_spawn_points()):
-            self.world.debug.draw_point(point.location  + carla.Location(z=1.25), size=0.02,color=carla.Color(255, 0, 0), life_time=2.0, persistent_lines=False)
-            self.world.debug.draw_string(point.location  + carla.Location(x = 3, y=2,z=1.25), str(i),color=carla.Color(0, 0, 255), life_time=2.0)
+            begin = point.location + carla.Location(z=1.25)
+            angle = math.radians(point.rotation.yaw)
+            sign_x = -np.sin(angle)
+            sign_y = np.cos(angle)
+            end = begin + carla.Location(x=math.cos(angle), y=math.sin(angle))
+            self.world.debug.draw_arrow(begin, end, arrow_size=1, life_time=0, thickness=0.5,color=carla.Color(255,0, 0))
+            #self.world.debug.draw_point(point.location  + carla.Location(z=1.25), size=0.02,color=carla.Color(255, 0, 0), life_time=2.0, persistent_lines=False)
+            self.world.debug.draw_string(point.location  + carla.Location(x = sign_x*3, y= sign_y*3,z=2), str(i),color=carla.Color(0, 0, 255), life_time=2.0)
         self.hud.render(self.display, extra_info=self.extra_info)
         self.extra_info = [] # Reset extra info list
 
@@ -189,7 +196,7 @@ class CarlaBirdView:
 
 
         # Get most recent observation and viewer image
-        self.viewer_image = self._get_viewer_image()
+        #self.viewer_image = self._get_viewer_image()
 
         pygame.event.pump()
         keys = pygame.key.get_pressed()

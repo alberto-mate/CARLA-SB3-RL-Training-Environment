@@ -23,6 +23,11 @@ except IndexError:
     pass
 import carla
 from collections import deque
+import itertools
+
+intersection_routes = itertools.cycle(
+    [(78, 76), (69, 48), (57, 48), (71, 70), (42, 64), (1, 38), (30, 56), (6, 17), (14, 55), (52, 62), (91, 96),
+     (45, 80), (35, 71), (65, 61)])
 
 
 class CarlaRouteEnv(gym.Env):
@@ -107,7 +112,6 @@ class CarlaRouteEnv(gym.Env):
         if start_carla:
             if "CARLA_ROOT" not in os.environ:
                 raise Exception("${CARLA_ROOT} has not been set!")
-            carla_path = os.environ["CARLA_ROOT"]
             carla_path = os.path.join(os.environ["CARLA_ROOT"], "CarlaUE4.sh")
             launch_command = [carla_path]
             launch_command += ['-quality_level=Low']
@@ -148,6 +152,7 @@ class CarlaRouteEnv(gym.Env):
 
         self.fps = fps
         self.action_smoothing = action_smoothing
+        self.episode_idx = -2
 
         self.encode_state_fn = (lambda x: x) if not callable(encode_state_fn) else encode_state_fn
         self.decode_vae_fn = None if not callable(decode_vae_fn) else decode_vae_fn
@@ -206,8 +211,8 @@ class CarlaRouteEnv(gym.Env):
     def reset(self, is_training=False):
         # Create new route
         self.num_routes_completed = -1
+        self.episode_idx += 1
         self.new_route()
-
         # Set env vars
         self.terminal_state = False  # Set to True when we want to end episode
         self.closed = False  # Set to True when ESC is pressed
@@ -240,13 +245,14 @@ class CarlaRouteEnv(gym.Env):
         self.vehicle.set_simulate_physics(False)  # Reset the car's physics
 
         # Generate waypoints along the lap
+        if self.episode_idx % 5 == 0 and self.num_routes_completed == -1:
+            spawm_points_list = [self.world.map.get_spawn_points()[index] for index in next(intersection_routes)]
+        else:
+            spawm_points_list = self.np_random.choice(self.world.map.get_spawn_points(), 2, replace=False)
         route_length = 1
         while route_length <= 1:
             self.start_wp, self.end_wp = [self.world.map.get_waypoint(spawn.location) for spawn in
-                                          self.np_random.choice(self.world.map.get_spawn_points(), 2, replace=False)]
-
-            self.start_wp = self.world.map.get_waypoint(self.world.map.get_spawn_points()[3].location)
-            self.end_wp = self.world.map.get_waypoint(self.world.map.get_spawn_points()[1].location)
+                                          spawm_points_list]
             self.route_waypoints = compute_route_waypoints(self.world.map, self.start_wp, self.end_wp, resolution=1.0)
             route_length = len(self.route_waypoints)
 
@@ -282,6 +288,7 @@ class CarlaRouteEnv(gym.Env):
 
         # Add metrics to HUD
         self.extra_info.extend([
+            "Episode {}".format(self.episode_idx),
             "Reward: % 19.2f" % self.last_reward,
             "",
             "Maneuver:        % 11s" % maneuver,
@@ -436,7 +443,7 @@ class CarlaRouteEnv(gym.Env):
             self.close()
             self.terminal_state = True
         self.render()
-
+        print(encoded_state['waypoints'])
         info = {
             "closed": self.closed,
             'total_reward': self.total_reward,

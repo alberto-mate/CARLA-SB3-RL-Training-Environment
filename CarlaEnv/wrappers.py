@@ -1,11 +1,6 @@
 import carla
-import random
-import time
-import collections
-import math
 import numpy as np
 import weakref
-import pygame
 
 
 def print_transform(transform):
@@ -96,9 +91,8 @@ sensor_transforms = {
     "spectator": carla.Transform(carla.Location(x=-5.5, z=2.8), carla.Rotation(pitch=-15)),
     "dashboard": carla.Transform(carla.Location(x=1.6, z=1.7)),
     "lidar": carla.Transform(carla.Location(x=0.0, z=2.4)),
-    "birdview": carla.Transform(carla.Location(x=120.0, y=100, z=200), carla.Rotation(pitch=-90))
+    "birdview": carla.Transform(carla.Location(x=90, y=210, z=175), carla.Rotation(pitch=-90))
 }
-
 
 # ===============================================================================
 # CarlaActorBase
