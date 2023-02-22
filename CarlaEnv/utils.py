@@ -9,10 +9,8 @@ import math
 
 class VideoRecorder():
     def __init__(self, filename, frame_size, fps=30):
-        self.video_writer = cv2.VideoWriter(
-            filename,
-            cv2.VideoWriter_fourcc(*"MPEG"), int(fps),
-            (frame_size[1], frame_size[0]))
+        fourcc = cv2.VideoWriter_fourcc(*'XVID')
+        self.video_writer = cv2.VideoWriter(filename,fourcc, int(fps),(frame_size[1], frame_size[0]))
 
     def add_frame(self, frame):
         self.video_writer.write(cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
@@ -75,6 +73,7 @@ class TensorboardCallback(BaseCallback):
             self.logger.record("custom/total_distance", self.locals['infos'][0]['total_distance'])
             self.logger.record("custom/avg_center_dev", self.locals['infos'][0]['avg_center_dev'])
             self.logger.record("custom/avg_speed", self.locals['infos'][0]['avg_speed'])
+            self.logger.record("custom/mean_reward", self.locals['infos'][0]['mean_reward'])
             self.logger.dump(self.num_timesteps)
         return True
 

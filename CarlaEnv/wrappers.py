@@ -87,6 +87,9 @@ def vector(v):
         return np.array([v.pitch, v.yaw, v.roll])
 
 
+def smooth_action(old_value, new_value, smooth_factor):
+    return old_value * smooth_factor + new_value * (1.0 - smooth_factor)
+
 sensor_transforms = {
     "spectator": carla.Transform(carla.Location(x=-5.5, z=2.8), carla.Rotation(pitch=-15)),
     "dashboard": carla.Transform(carla.Location(x=1.6, z=1.7)),

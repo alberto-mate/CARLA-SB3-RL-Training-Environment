@@ -44,6 +44,9 @@ def create_reward_fn(reward_fn):
             reward -= 10
             print(f"{env.episode_idx}| Terminal: ",terminal_reason)
 
+        if env.success_state:
+            print(f"{env.episode_idx}| Success")
+
 
         env.extra_info.extend([
             terminal_reason,

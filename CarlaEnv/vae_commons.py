@@ -75,7 +75,7 @@ def create_encode_state_fn(vae, measurements_to_include):
             with torch.no_grad():
                 frame = preprocess_frame(env.observation)
                 mu, logvar = vae.encode(frame)
-                vae_latent = vae.reparameterize(mu, logvar)[0].cpu().detach().numpy()
+                vae_latent = vae.reparameterize(mu, logvar)[0].cpu().detach().numpy()[np.newaxis, :]
             encoded_state['vae_latent'] = vae_latent
         vehicle_measures = []
         if measure_flags[0]: vehicle_measures.append(env.vehicle.control.steer)
