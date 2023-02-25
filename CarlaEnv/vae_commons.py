@@ -95,6 +95,11 @@ def create_encode_state_fn(vae, measurements_to_include):
             relative_waypoints = np.zeros((15, 2))
             for i, w_location in enumerate(waypoints):
                 relative_waypoints[i] = get_displacement_vector(vehicle_location, w_location, theta)[:2]
+            if len(waypoints) < 15:
+                start_index = len(waypoints)
+                reference_vector = relative_waypoints[start_index-1] - relative_waypoints[start_index-2]
+                for i in range(start_index, 15):
+                    relative_waypoints[i] = relative_waypoints[i-1] + reference_vector
 
             encoded_state['waypoints'] = relative_waypoints
         return encoded_state

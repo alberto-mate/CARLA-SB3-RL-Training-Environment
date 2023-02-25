@@ -1,5 +1,7 @@
 import os.path
 
+import pygame
+from pygame.locals import *
 from stable_baselines3 import PPO, DQN
 import pandas as pd
 import numpy as np
@@ -40,15 +42,27 @@ def run_eval(env, model, model_path=None, record_video=False):
         video_recorder.add_frame(rendered_frame)
     else:
         video_recorder = None
+    action = np.zeros(env.action_space.shape[0])
 
     # While non-terminal state
     while env.episode_idx < 2:
         env.extra_info.append("Eval - Episode {}".format(env.episode_idx))
         env.extra_info.append("")
 
-        action, _states = model.predict(state, deterministic=True)
+        #action, _states = model.predict(state, deterministic=True)
+        pygame.event.pump()
+        keys = pygame.key.get_pressed()
+        if keys[K_LEFT] or keys[K_a]:
+            action[0] = -0.5
+        elif keys[K_RIGHT] or keys[K_d]:
+            action[0] = 0.5
+        else:
+            action[0] = 0.0
+        action[0] = np.clip(action[0], -1, 1)
+        action[1] = 1.0 if keys[K_UP] or keys[K_w] else 0.0
+        action[0] = 0
+        action[1] = 0.3
         state, reward, dones, info = env.step(action)
-        print(reward, env.total_reward)
 
         if env.step_count == 2:
             initial_heading = np.deg2rad(env.vehicle.get_transform().rotation.yaw)
@@ -58,13 +72,12 @@ def run_eval(env, model, model_path=None, record_video=False):
                                                    initial_heading)
         waypoint_relative = get_displacement_vector(initial_vehicle_location,
                                                     vector(env.current_waypoint.transform.location), initial_heading)
-        print(waypoint_relative)
 
         new_row = pd.DataFrame(
             [[model_id, env.episode_idx, env.step_count, env.vehicle.control.throttle, env.vehicle.control.steer,
               vehicle_relative[0], vehicle_relative[1], reward,
               env.distance_traveled,
-              env.vehicle.get_speed(), env.distance_from_center, env.vehicle.get_angle(env.current_waypoint),
+              env.vehicle.get_speed(), env.distance_from_center, np.rad2deg(env.vehicle.get_angle(env.current_waypoint)),
               waypoint_relative[0], waypoint_relative[1]
               ]], columns=columns)
         df = pd.concat([df, new_row], ignore_index=True)
@@ -114,7 +127,7 @@ def plot_eval(eval_csv_path):
 
         axs[i][2].plot(episode_df['step'], episode_df['speed'])
         axs[i][2].set_xlabel('Step')
-        axs[i, 2].set_ylim(0, 30)  # clip y-axis limits to -1 and 1
+        axs[i, 2].set_ylim(0, 40)  # clip y-axis limits to -1 and 1
 
         # Plot the reward progress
         axs[i][3].plot(episode_df['step'], episode_df['reward'])
@@ -138,8 +151,8 @@ def plot_eval(eval_csv_path):
         axs[i][7].plot(episode_df['vehicle_location_x'].tail(1), episode_df['vehicle_location_y'].tail(1), 'ro',
                        label='End')
 
-        axs[i, 7].set_xlim(left=min(-2, min(episode_df['waypoint_x'])))
-        axs[i, 7].set_xlim(right=max(2, max(episode_df['waypoint_x'])))
+        axs[i, 7].set_xlim(left=min(-2, min(episode_df['waypoint_x'] - 3)))
+        axs[i, 7].set_xlim(right=max(2, max(episode_df['waypoint_x'] + 3)))
 
     pad = 5  # in points
     for ax, col in zip(axs[0], cols):
@@ -159,7 +172,7 @@ def plot_eval(eval_csv_path):
 
 
 if __name__ == "__main__":
-    model_path = "./tensorboard/PPO_vae64_1677320181/rl_model_20000_steps.zip"
+    model_path = "./tensorboard/PPO_vae64_1677323832/rl_model_200000_steps.zip"
 
     algorithm_dict = {"PPO": PPO, "DQN": DQN}
 

@@ -2,10 +2,10 @@ from wrappers import angle_diff, vector
 import numpy as np
 from config import CONFIG
 
-#min_speed = 20.0  # km/h
-#max_speed = 35.0  # km/h
-#target_speed = 25.0  # kmh
-#max_distance = 3.0  # Max distance from center before terminating
+# min_speed = 20.0  # km/h
+# max_speed = 35.0  # km/h
+# target_speed = 25.0  # kmh
+# max_distance = 3.0  # Max distance from center before terminating
 low_speed_timer = 0
 
 min_speed = CONFIG["reward_params"]["min_speed"]
@@ -13,6 +13,8 @@ max_speed = CONFIG["reward_params"]["max_speed"]
 target_speed = CONFIG["reward_params"]["target_speed"]
 max_distance = CONFIG["reward_params"]["max_distance"]
 reward_functions = {}
+
+
 def create_reward_fn(reward_fn):
     def func(env):
         terminal_reason = "Running..."
@@ -42,18 +44,19 @@ def create_reward_fn(reward_fn):
         else:
             low_speed_timer = 0.0
             reward -= 10
-            print(f"{env.episode_idx}| Terminal: ",terminal_reason)
+            print(f"{env.episode_idx}| Terminal: ", terminal_reason)
 
         if env.success_state:
             print(f"{env.episode_idx}| Success")
-
 
         env.extra_info.extend([
             terminal_reason,
             ""
         ])
         return reward
+
     return func
+
 
 # Reward_fn5
 def reward_fn5(env):
@@ -80,7 +83,7 @@ def reward_fn5(env):
         speed_reward = 1.0  # Return 1 for speeds in range [min_speed, target_speed]
 
     # Interpolated from 1 when centered to 0 when 3 m from center
-    centering_factor = max(1.0 - (env.distance_from_center - 0.22) / max_distance, 0.0)
+    centering_factor = max(1.0 - env.distance_from_center / max_distance, 0.0)
 
     # Interpolated from 1 when aligned with the road to 0 when +/- 20 degress of road
     angle_factor = max(1.0 - abs(angle / np.deg2rad(90)), 0.0)
@@ -92,5 +95,6 @@ def reward_fn5(env):
     reward = speed_reward * centering_factor * angle_factor * distance_factor
 
     return reward
+
 
 reward_functions["reward_fn5"] = create_reward_fn(reward_fn5)

@@ -57,6 +57,7 @@ def angle_diff(v0, v1):
     """
     Calculates the signed angle difference between 2D vectors v0 and v1.
     It returns the angle difference in radians between v0 and v1.
+    The v0 is the reference for the sign of the angle
     """
     v0_xy = v0[:2]
     v1_xy = v1[:2]
@@ -69,12 +70,18 @@ def angle_diff(v0, v1):
     v1_xy_u = v1_xy / v1_xy_norm
     dot_product = np.dot(v0_xy_u, v1_xy_u)
     angle = np.arccos(dot_product)
-    if abs(angle) >= 2.5:
+
+    # Calculate the sign of the angle using the cross product
+    cross_product = np.cross(v0_xy_u, v1_xy_u)
+    if cross_product < 0:
+        angle = -angle
+    if abs(angle) >= 2.3:
         return 0
     return angle
 
 
 def distance_to_line(A, B, p):
+    p[2] = 0
     num = np.linalg.norm(np.cross(B - A, A - p))
     denom = np.linalg.norm(B - A)
     if np.isclose(denom, 0):
@@ -367,7 +374,7 @@ class Vehicle(CarlaActorBase):
     def get_angle(self, waypoint):
         fwd = vector(self.get_velocity())
         wp_fwd = vector(waypoint.transform.rotation.get_forward_vector())
-        return angle_diff(fwd, wp_fwd)
+        return angle_diff(wp_fwd, fwd)
 
     def get_closest_waypoint(self):
         return self.world.map.get_waypoint(self.get_transform().location, project_to_road=True)

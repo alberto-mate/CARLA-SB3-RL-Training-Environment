@@ -270,8 +270,10 @@ class CarlaRouteEnv(gym.Env):
                                           spawm_points_list]
             self.route_waypoints = compute_route_waypoints(self.world.map, self.start_wp, self.end_wp, resolution=1.0)
             route_length = len(self.route_waypoints)
+            if route_length <= 1:
+                spawm_points_list = self.np_random.choice(self.world.map.get_spawn_points(), 2, replace=False)
 
-        self.distance_from_center_history = deque(maxlen=15)
+        self.distance_from_center_history = deque(maxlen=30)
 
         self.current_waypoint_index = 0
         self.num_routes_completed += 1
@@ -370,7 +372,8 @@ class CarlaRouteEnv(gym.Env):
             # steer, throttle, brake = [float(a) for a in action]
 
             self.vehicle.control.steer = smooth_action(self.vehicle.control.steer, steer, self.action_smoothing)
-            self.vehicle.control.throttle = smooth_action(self.vehicle.control.throttle, throttle, self.action_smoothing)
+            self.vehicle.control.throttle = smooth_action(self.vehicle.control.throttle, throttle,
+                                                          self.action_smoothing)
 
             # self.vehicle.tick()
             # self.vehicle.control.brake = self.vehicle.control.brake * self.action_smoothing + brake * (1.0-self.action_smoothing)

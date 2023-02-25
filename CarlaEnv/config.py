@@ -5,12 +5,12 @@ from CarlaEnv.utils import lr_schedule
 _CONFIG_PPO = {
     "algorithm": "PPO",
     "algorithm_params": dict(
-        learning_rate=lr_schedule(1e-4, 1e-6, 2),
+        learning_rate=lr_schedule(1e-4, 1e-7, 2),
         gae_lambda=0.95,
         clip_range=0.2,
         ent_coef=0.05,
         n_epochs=10,
-        n_steps=512,
+        n_steps=1024,
         policy_kwargs=dict(activation_fn=th.nn.ReLU,
                            net_arch=[dict(pi=[500, 300], vf=[500, 300])])
     ),
