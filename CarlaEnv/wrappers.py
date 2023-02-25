@@ -41,9 +41,12 @@ def get_displacement_vector(car_pos, waypoint_pos, theta):
     R = np.array([[np.cos(theta), np.sin(theta), 0],
                   [-np.sin(theta), np.cos(theta), 0],
                   [0, 0, 1]])
-
+    T = np.array([[0, 1, 0],
+                  [1, 0, 0],
+                  [0, 0, 1]])
     # Apply the rotation matrix to the relative position vector
     waypoint_car = R @ relative_pos
+    waypoint_car = T @ waypoint_car
     # Set values very close to zero to exactly zero
     waypoint_car[np.abs(waypoint_car) < 10e-10] = 0
 
@@ -90,12 +93,14 @@ def vector(v):
 def smooth_action(old_value, new_value, smooth_factor):
     return old_value * smooth_factor + new_value * (1.0 - smooth_factor)
 
+
 sensor_transforms = {
     "spectator": carla.Transform(carla.Location(x=-5.5, z=2.8), carla.Rotation(pitch=-15)),
     "dashboard": carla.Transform(carla.Location(x=1.6, z=1.7)),
     "lidar": carla.Transform(carla.Location(x=0.0, z=2.4)),
     "birdview": carla.Transform(carla.Location(x=90, y=210, z=175), carla.Rotation(pitch=-90))
 }
+
 
 # ===============================================================================
 # CarlaActorBase

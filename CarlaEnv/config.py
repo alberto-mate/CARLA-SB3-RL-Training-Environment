@@ -5,7 +5,7 @@ from CarlaEnv.utils import lr_schedule
 _CONFIG_PPO = {
     "algorithm": "PPO",
     "algorithm_params": dict(
-        learning_rate=lr_schedule(10e-4, 10e-6, 2),
+        learning_rate=lr_schedule(1e-4, 1e-6, 2),
         gae_lambda=0.95,
         clip_range=0.2,
         ent_coef=0.05,

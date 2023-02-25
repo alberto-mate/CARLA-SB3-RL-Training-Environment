@@ -5,12 +5,24 @@ import numpy as np
 import scipy.signal
 import tensorflow as tf
 import math
+import json
+
+
+def write_json(data, path):
+    config_dict = {}
+    with open(path, 'w', encoding='utf-8') as f:
+        for k, v in data.items():
+            if isinstance(v, str) and v.isnumeric():
+                config_dict[k] = int(v)
+            else:
+                config_dict[k] = v.__str__()
+        json.dump(config_dict, f, indent=4)
 
 
 class VideoRecorder():
     def __init__(self, filename, frame_size, fps=30):
         fourcc = cv2.VideoWriter_fourcc(*'XVID')
-        self.video_writer = cv2.VideoWriter(filename,fourcc, int(fps),(frame_size[1], frame_size[0]))
+        self.video_writer = cv2.VideoWriter(filename, fourcc, int(fps), (frame_size[1], frame_size[0]))
 
     def add_frame(self, frame):
         self.video_writer.write(cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))

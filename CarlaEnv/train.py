@@ -9,7 +9,7 @@ from vae.utils.misc import LSIZE
 from vae_commons import create_encode_state_fn, load_vae
 
 from rewards import reward_functions
-from utils import HParamCallback, TensorboardCallback
+from utils import HParamCallback, TensorboardCallback, write_json
 
 from config import CONFIG
 
@@ -39,8 +39,9 @@ model_name = f'{model.__class__.__name__}_{CONFIG["vae_model"].replace("_", "")}
 model_dir = os.path.join(log_dir, model_name)
 new_logger = configure(model_dir, ["stdout", "csv", "tensorboard"])
 model.set_logger(new_logger)
+write_json(CONFIG, os.path.join(model_dir, 'config.json'))
 
-total_timesteps = 500_000
+total_timesteps = 200_000
 model.learn(total_timesteps=total_timesteps,
             callback=[HParamCallback(CONFIG), TensorboardCallback(1), CheckpointCallback(
                 save_freq=total_timesteps // 10,
