@@ -41,9 +41,9 @@ new_logger = configure(model_dir, ["stdout", "csv", "tensorboard"])
 model.set_logger(new_logger)
 write_json(CONFIG, os.path.join(model_dir, 'config.json'))
 
-total_timesteps = 200_000
+total_timesteps = 300_000
 model.learn(total_timesteps=total_timesteps,
             callback=[HParamCallback(CONFIG), TensorboardCallback(1), CheckpointCallback(
                 save_freq=total_timesteps // 10,
                 save_path=model_dir,
-                name_prefix="")])
+                name_prefix="model")])

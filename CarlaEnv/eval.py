@@ -15,7 +15,7 @@ from config import CONFIG
 from vae.utils.misc import LSIZE
 from wrappers import vector, get_displacement_vector
 from CarlaEnv.envs.carla_route_vae_env import CarlaRouteEnv
-
+from CarlaEnv.eval_plots import plot_eval
 
 def run_eval(env, model, model_path=None, record_video=False):
     model_name = os.path.basename(model_path)
@@ -23,7 +23,7 @@ def run_eval(env, model, model_path=None, record_video=False):
     os.makedirs(log_path, exist_ok=True)
     video_path = os.path.join(log_path, model_name.replace(".zip", "_eval.avi"))
     csv_path = os.path.join(log_path, model_name.replace(".zip", "_eval.csv"))
-    model_id = model_path.split("/")[-2]
+    model_id = f"{model_path.split('/')[-2]}-{model_name.split('_')[-2]}"
     # vec_env = model.get_env()
     state = env.reset()
     rendered_frame = env.render(mode="rgb_array")
@@ -45,23 +45,23 @@ def run_eval(env, model, model_path=None, record_video=False):
     action = np.zeros(env.action_space.shape[0])
 
     # While non-terminal state
-    while env.episode_idx < 2:
+    while env.episode_idx < 6:
         env.extra_info.append("Eval")
         env.extra_info.append("")
 
-        #action, _states = model.predict(state, deterministic=True)
-        pygame.event.pump()
-        keys = pygame.key.get_pressed()
-        if keys[K_LEFT] or keys[K_a]:
-            action[0] = -0.5
-        elif keys[K_RIGHT] or keys[K_d]:
-            action[0] = 0.5
-        else:
-            action[0] = 0.0
-        action[0] = np.clip(action[0], -1, 1)
-        action[1] = 1.0 if keys[K_UP] or keys[K_w] else 0.0
-        action[0] = 0
-        action[1] = 0.3
+        action, _states = model.predict(state, deterministic=True)
+        # pygame.event.pump()
+        # keys = pygame.key.get_pressed()
+        # if keys[K_LEFT] or keys[K_a]:
+        #     action[0] = -0.5
+        # elif keys[K_RIGHT] or keys[K_d]:
+        #     action[0] = 0.5
+        # else:
+        #     action[0] = 0.0
+        # action[0] = np.clip(action[0], -1, 1)
+        # action[1] = 1.0 if keys[K_UP] or keys[K_w] else 0.0
+        # action[0] = 0
+        # action[1] = 0.3
         state, reward, dones, info = env.step(action)
 
         if env.step_count == 2:
@@ -93,86 +93,11 @@ def run_eval(env, model, model_path=None, record_video=False):
         video_recorder.release()
 
     df.to_csv(csv_path, index=False)
-    plot_eval(csv_path)
-
-
-def plot_eval(eval_csv_path):
-    import matplotlib.pyplot as plt
-
-    # Load the dataframe
-    df = pd.read_csv(eval_csv_path)
-
-    # Get a list of unique episode numbers
-    episode_numbers = df['episode'].unique()
-    cols = ['Steer', 'Throttle', 'Speed (km/h)', 'Reward', 'Center Deviation (m)', 'Distance (m)',
-            'Angle next waypoint (grad)', 'Trajectory']
-
-    # Create a figure with subplots for each episode
-    fig, axs = plt.subplots(len(episode_numbers), len(cols), figsize=(4 * len(cols), 3 * len(episode_numbers)))
-
-    # Loop over each episode number
-    for i, episode_number in enumerate(episode_numbers):
-        # Select the rows for the current episode
-        episode_df = df[df['episode'] == episode_number]
-
-        # Plot the steer progress
-        axs[i][0].plot(episode_df['step'], episode_df['steer'])
-        axs[i][0].set_xlabel('Step')
-        axs[i, 0].set_ylim(-1, 1)  # clip y-axis limits to -1 and 1
-
-        # Plot the throttle progress
-        axs[i][1].plot(episode_df['step'], episode_df['throttle'])
-        axs[i][1].set_xlabel('Step')
-        axs[i, 1].set_ylim(0, 1)  # clip y-axis limits to -1 and 1
-
-        axs[i][2].plot(episode_df['step'], episode_df['speed'])
-        axs[i][2].set_xlabel('Step')
-        axs[i, 2].set_ylim(0, 40)  # clip y-axis limits to -1 and 1
-
-        # Plot the reward progress
-        axs[i][3].plot(episode_df['step'], episode_df['reward'])
-        axs[i][3].set_xlabel('Step')
-        axs[i, 3].set_ylim(-0.2, 1)  # clip y-axis limits to -1 and 1
-
-        axs[i][4].plot(episode_df['step'], episode_df['center_dev'])
-        axs[i][4].set_xlabel('Step')
-        axs[i, 4].set_ylim(0, 3)  # clip y-axis limits to -1 and 1
-
-        axs[i][5].plot(episode_df['step'], episode_df['distance'])
-        axs[i][5].set_xlabel('Step')
-
-        axs[i][6].plot(episode_df['step'], episode_df['angle_next_waypoint'])
-        axs[i][6].set_xlabel('Step')
-
-        axs[i][7].plot(episode_df['vehicle_location_x'], episode_df['vehicle_location_y'], label='Vehicle')
-        axs[i][7].plot(episode_df['waypoint_x'], episode_df['waypoint_y'], label='Waypoint')
-        axs[i][7].plot(episode_df['vehicle_location_x'].head(1), episode_df['vehicle_location_y'].head(1), 'go',
-                       label='Start')
-        axs[i][7].plot(episode_df['vehicle_location_x'].tail(1), episode_df['vehicle_location_y'].tail(1), 'ro',
-                       label='End')
-
-        axs[i, 7].set_xlim(left=min(-2, min(episode_df['waypoint_x'] - 3)))
-        axs[i, 7].set_xlim(right=max(2, max(episode_df['waypoint_x'] + 3)))
-
-    pad = 5  # in points
-    for ax, col in zip(axs[0], cols):
-        ax.annotate(col, xy=(0.5, 1), xytext=(0, pad),
-                    xycoords='axes fraction', textcoords='offset points',
-                    size='large', ha='center', va='baseline')
-    for ax, row in zip(axs[:, 0], episode_numbers):
-        ax.annotate(f"Episode {row}", xy=(0, 0.5), xytext=(-ax.yaxis.labelpad - pad, 0),
-                    xycoords=ax.yaxis.label, textcoords='offset points',
-                    size='large', ha='right', va='center')
-
-    # Adjust the spacing between subplots
-    plt.tight_layout()
-
-    # Show the plot
-    plt.savefig(os.path.join(os.path.dirname(eval_csv_path), "plot.png"))
+    plot_eval([csv_path])
 
 
 if __name__ == "__main__":
-    model_path = "./tensorboard/PPO_vae64_1677323832/rl_model_200000_steps.zip"
+    model_path = "./tensorboard/PPO_vae64_1677415201/model_300000_steps.zip"
 
     algorithm_dict = {"PPO": PPO, "DQN": DQN}
 

@@ -28,7 +28,7 @@ import itertools
 intersection_routes = itertools.cycle(
     [(78, 76), (69, 48), (57, 48), (71, 70), (42, 64), (1, 38), (30, 56), (6, 17), (14, 55), (52, 62), (91, 96),
      (45, 80), (35, 71), (65, 61)])
-eval_routes = itertools.cycle([(3, 1), (0, 65)])
+eval_routes = itertools.cycle([(3, 1), (0, 72), (21, 26), (40, 44), (68, 43), (65, 96)])
 
 discrete_actions = {
     0: [-1, 1], 1: [0, 1], 2: [1, 1], 3: [0, 0],
