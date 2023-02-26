@@ -14,6 +14,11 @@ def write_json(data, path):
         for k, v in data.items():
             if isinstance(v, str) and v.isnumeric():
                 config_dict[k] = int(v)
+            elif isinstance(v, dict):
+                config_dict[k] = dict()
+                for k_inner, v_inner in v.items():
+                    config_dict[k][k_inner] = v_inner.__str__()
+                config_dict[k] = str(config_dict[k])
             else:
                 config_dict[k] = v.__str__()
         json.dump(config_dict, f, indent=4)
@@ -51,6 +56,11 @@ class HParamCallback(BaseCallback):
         for k, v in self.config.items():
             if isinstance(v, str) and v.isnumeric():
                 hparam_dict[k] = int(v)
+            elif isinstance(v, dict):
+                hparam_dict[k] = dict()
+                for k_inner, v_inner in v.items():
+                    hparam_dict[k][k_inner] = v_inner.__str__()
+                hparam_dict[k] = str(hparam_dict[k])
             else:
                 hparam_dict[k] = v.__str__()
         # define the metrics that will appear in the `HPARAMS` Tensorboard tab by referencing their tag
@@ -112,5 +122,7 @@ def lr_schedule(initial_value: float, end_value: float, rate: float):
             return end_value
 
         return end_value + (initial_value - end_value) * (10 ** (rate * math.log10(progress_remaining)))
+    func.__str__ = lambda: f"lr_schedule({initial_value}, {end_value}, {rate})"
+    lr_schedule.__str__ = lambda: f"lr_schedule({initial_value}, {end_value}, {rate})"
 
     return func

@@ -45,4 +45,5 @@ total_timesteps = 200_000
 model.learn(total_timesteps=total_timesteps,
             callback=[HParamCallback(CONFIG), TensorboardCallback(1), CheckpointCallback(
                 save_freq=total_timesteps // 10,
-                save_path=model_dir)])
+                save_path=model_dir,
+                name_prefix="")])
