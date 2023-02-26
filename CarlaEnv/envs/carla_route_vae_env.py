@@ -6,13 +6,13 @@ import time
 
 import gym
 import pygame
+import cv2
 from gym.utils import seeding
 from pygame.locals import *
 
 from CarlaEnv.hud import HUD
 from CarlaEnv.agents.navigation.planner import RoadOption, compute_route_waypoints
 from CarlaEnv.wrappers import *
-from vae.utils.misc import LSIZE
 
 try:
     sys.path.append(glob.glob('../carla/dist/carla-*%d.%d-%s.egg' % (
@@ -152,7 +152,7 @@ class CarlaRouteEnv(gym.Env):
         if self.action_space_type == "continuous":
             self.action_space = gym.spaces.Box(np.array([-1, 0]), np.array([1, 1]), dtype=np.float32)  # steer, throttle
         elif self.action_space_type == "discrete":
-            self.action_space = gym.spaces.Discrete(4)
+            self.action_space = gym.spaces.Discrete(len(discrete_actions))
 
         # self.observation_space = gym.spaces.Box(low=0, high=255, shape=(out_height, out_width, 3), dtype=np.uint8)
         self.observation_space = observation_space
@@ -318,8 +318,8 @@ class CarlaRouteEnv(gym.Env):
         ])
         if self.activate_spectator:
             # Blit image from spectator camera
+            self.viewer_image = self.draw_path(self.camera, self.viewer_image)
             self.display.blit(pygame.surfarray.make_surface(self.viewer_image.swapaxes(0, 1)), (0, 0))
-
             # Superimpose current observation into top-right corner
             # view_h, view_w = self.viewer_image.shape[:2]
         obs_h, obs_w = self.observation.shape[:2]
@@ -449,7 +449,7 @@ class CarlaRouteEnv(gym.Env):
         self.step_count += 1
 
         # DEBUG: Draw path
-        # self._draw_path(life_time=2.0, skip=10)
+        # self._draw_path_server(life_time=1.0, skip=8)
         # DEBUG: Draw current waypoint
         # self.world.debug.draw_point(self.current_waypoint.transform.location + carla.Location(z=1.25), size=0.1,color=carla.Color(0, 255, 255), life_time=2.0, persistent_lines=False)
 
@@ -470,7 +470,7 @@ class CarlaRouteEnv(gym.Env):
         }
         return encoded_state, self.last_reward, self.terminal_state or self.success_state, info
 
-    def _draw_path(self, life_time=60.0, skip=0):
+    def _draw_path_server(self, life_time=60.0, skip=0):
         """
             Draw a connected path from start of route to end.
             Green node = start
@@ -478,21 +478,46 @@ class CarlaRouteEnv(gym.Env):
             Blue node  = destination
         """
         for i in range(0, len(self.route_waypoints) - 1, skip + 1):
+            z = 30.25
             w0 = self.route_waypoints[i][0]
             w1 = self.route_waypoints[i + 1][0]
             self.world.debug.draw_line(
-                w0.transform.location + carla.Location(z=0.25),
-                w1.transform.location + carla.Location(z=0.25),
+                w0.transform.location + carla.Location(z=z),
+                w1.transform.location + carla.Location(z=z),
                 thickness=0.1, color=carla.Color(255, 0, 0),
                 life_time=life_time, persistent_lines=False)
             self.world.debug.draw_point(
-                w0.transform.location + carla.Location(z=0.25), 0.1,
+                w0.transform.location + carla.Location(z=z), 0.1,
                 carla.Color(0, 255, 0) if i == 0 else carla.Color(255, 0, 0),
                 life_time, False)
         self.world.debug.draw_point(
-            self.route_waypoints[-1][0].transform.location + carla.Location(z=0.25), 0.1,
+            self.route_waypoints[-1][0].transform.location + carla.Location(z=z), 0.1,
             carla.Color(0, 0, 255),
             life_time, False)
+
+    def draw_path(self, camera, image):
+        vehicle_vector = vector(self.vehicle.get_transform().location)
+        # Get the world to camera matrix
+        world_2_camera = np.array(camera.get_transform().get_inverse_matrix())
+
+        # Get the attributes from the camera
+        image_w = int(camera.actor.attributes['image_size_x'])
+        image_h = int(camera.actor.attributes['image_size_y'])
+        fov = float(camera.actor.attributes['fov'])
+        for i in range(self.current_waypoint_index, len(self.route_waypoints)):
+            waypoint_location = self.route_waypoints[i][0].transform.location + carla.Location(z=1.25)
+            waypoint_vector = vector(waypoint_location)
+            if not (2 < abs(np.linalg.norm(vehicle_vector - waypoint_vector)) < 50):
+                continue
+            # Calculate the camera projection matrix to project from 3D -> 2D
+            K = build_projection_matrix(image_w, image_h, fov)
+            x, y = get_image_point(waypoint_location, K, world_2_camera)
+            if i == len(self.route_waypoints) - 1:
+                color = (255, 0, 0)
+            else:
+                color = (0, 0, 255)
+            image = cv2.circle(image, (x, y), radius=3, color=color, thickness=-1)
+        return image
 
     def _get_observation(self):
         while self.observation_buffer is None:

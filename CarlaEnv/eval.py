@@ -46,7 +46,7 @@ def run_eval(env, model, model_path=None, record_video=False):
 
     # While non-terminal state
     while env.episode_idx < 2:
-        env.extra_info.append("Eval - Episode {}".format(env.episode_idx))
+        env.extra_info.append("Eval")
         env.extra_info.append("")
 
         #action, _states = model.predict(state, deterministic=True)
@@ -105,7 +105,7 @@ def plot_eval(eval_csv_path):
     # Get a list of unique episode numbers
     episode_numbers = df['episode'].unique()
     cols = ['Steer', 'Throttle', 'Speed (km/h)', 'Reward', 'Center Deviation (m)', 'Distance (m)',
-            'Angle next waypoint (rad)', 'Trajectory']
+            'Angle next waypoint (grad)', 'Trajectory']
 
     # Create a figure with subplots for each episode
     fig, axs = plt.subplots(len(episode_numbers), len(cols), figsize=(4 * len(cols), 3 * len(episode_numbers)))
