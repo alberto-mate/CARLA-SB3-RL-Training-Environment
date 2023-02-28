@@ -17,6 +17,7 @@ from wrappers import vector, get_displacement_vector
 from CarlaEnv.envs.carla_route_vae_env import CarlaRouteEnv
 from CarlaEnv.eval_plots import plot_eval
 
+
 def run_eval(env, model, model_path=None, record_video=False):
     model_name = os.path.basename(model_path)
     log_path = os.path.join(os.path.dirname(model_path), 'eval')
@@ -29,7 +30,7 @@ def run_eval(env, model, model_path=None, record_video=False):
     rendered_frame = env.render(mode="rgb_array")
 
     columns = ["model_id", "episode", "step", "throttle", "steer", "vehicle_location_x", "vehicle_location_y",
-               "reward", "distance", "speed", "center_dev", "angle_next_waypoint", "waypoint_x", "waypoint_y"]
+               "reward", "distance", "speed", "center_dev", "angle_next_waypoint", "waypoint_x", "waypoint_y", "route_x", "route_y"]
     df = pd.DataFrame(columns=columns)
 
     # Init video recording
@@ -45,28 +46,24 @@ def run_eval(env, model, model_path=None, record_video=False):
     action = np.zeros(env.action_space.shape[0])
 
     # While non-terminal state
-    while env.episode_idx < 6:
+    while env.episode_idx < 2:
         env.extra_info.append("Eval")
         env.extra_info.append("")
 
         action, _states = model.predict(state, deterministic=True)
-        # pygame.event.pump()
-        # keys = pygame.key.get_pressed()
-        # if keys[K_LEFT] or keys[K_a]:
-        #     action[0] = -0.5
-        # elif keys[K_RIGHT] or keys[K_d]:
-        #     action[0] = 0.5
-        # else:
-        #     action[0] = 0.0
-        # action[0] = np.clip(action[0], -1, 1)
-        # action[1] = 1.0 if keys[K_UP] or keys[K_w] else 0.0
-        # action[0] = 0
-        # action[1] = 0.3
         state, reward, dones, info = env.step(action)
 
         if env.step_count == 2:
             initial_heading = np.deg2rad(env.vehicle.get_transform().rotation.yaw)
             initial_vehicle_location = vector(env.vehicle.get_location())
+            # Save the route to plot them later
+            for way in env.route_waypoints:
+                route_relative = get_displacement_vector(initial_vehicle_location,
+                                                         vector(way[0].transform.location),
+                                                         initial_heading)
+                new_row = pd.DataFrame([['route', env.episode_idx, route_relative[0], route_relative[1]]],
+                                       columns=["model_id", "episode", "route_x", "route_y"])
+                df = pd.concat([df, new_row], ignore_index=True)
 
         vehicle_relative = get_displacement_vector(initial_vehicle_location, vector(env.vehicle.get_location()),
                                                    initial_heading)
@@ -77,8 +74,9 @@ def run_eval(env, model, model_path=None, record_video=False):
             [[model_id, env.episode_idx, env.step_count, env.vehicle.control.throttle, env.vehicle.control.steer,
               vehicle_relative[0], vehicle_relative[1], reward,
               env.distance_traveled,
-              env.vehicle.get_speed(), env.distance_from_center, np.rad2deg(env.vehicle.get_angle(env.current_waypoint)),
-              waypoint_relative[0], waypoint_relative[1]
+              env.vehicle.get_speed(), env.distance_from_center,
+              np.rad2deg(env.vehicle.get_angle(env.current_waypoint)),
+              waypoint_relative[0], waypoint_relative[1], None, None
               ]], columns=columns)
         df = pd.concat([df, new_row], ignore_index=True)
 
@@ -88,6 +86,7 @@ def run_eval(env, model, model_path=None, record_video=False):
             video_recorder.add_frame(rendered_frame)
         if dones:
             state = env.reset()
+
     # Release video
     if record_video:
         video_recorder.release()
@@ -97,7 +96,7 @@ def run_eval(env, model, model_path=None, record_video=False):
 
 
 if __name__ == "__main__":
-    model_path = "./tensorboard/PPO_vae64_1677415201/model_300000_steps.zip"
+    model_path = "./tensorboard/PPO_vae64_1677524104/model_1400000_steps.zip"
 
     algorithm_dict = {"PPO": PPO, "DQN": DQN}
 

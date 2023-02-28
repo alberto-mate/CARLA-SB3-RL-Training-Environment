@@ -2,16 +2,15 @@ from wrappers import angle_diff, vector
 import numpy as np
 from config import CONFIG
 
-# min_speed = 20.0  # km/h
-# max_speed = 35.0  # km/h
-# target_speed = 25.0  # kmh
-# max_distance = 3.0  # Max distance from center before terminating
 low_speed_timer = 0
 
 min_speed = CONFIG["reward_params"]["min_speed"]
 max_speed = CONFIG["reward_params"]["max_speed"]
 target_speed = CONFIG["reward_params"]["target_speed"]
 max_distance = CONFIG["reward_params"]["max_distance"]
+max_std_center_lane = CONFIG["reward_params"]["max_std_center_lane"]
+max_angle_center_lane = CONFIG["reward_params"]["max_angle_center_lane"]
+penalty_reward = CONFIG["reward_params"]["penalty_reward"]
 reward_functions = {}
 
 
@@ -43,7 +42,7 @@ def create_reward_fn(reward_fn):
             reward += reward_fn(env)
         else:
             low_speed_timer = 0.0
-            reward -= 10
+            reward += penalty_reward
             print(f"{env.episode_idx}| Terminal: ", terminal_reason)
 
         if env.success_state:
@@ -86,10 +85,10 @@ def reward_fn5(env):
     centering_factor = max(1.0 - env.distance_from_center / max_distance, 0.0)
 
     # Interpolated from 1 when aligned with the road to 0 when +/- 20 degress of road
-    angle_factor = max(1.0 - abs(angle / np.deg2rad(90)), 0.0)
+    angle_factor = max(1.0 - abs(angle / np.deg2rad(max_angle_center_lane)), 0.0)
 
     std = np.std(env.distance_from_center_history)
-    distance_factor = max(1.0 - abs(std / 0.4), 0.0)
+    distance_factor = max(1.0 - abs(std / max_std_center_lane), 0.0)
 
     # Final reward
     reward = speed_reward * centering_factor * angle_factor * distance_factor

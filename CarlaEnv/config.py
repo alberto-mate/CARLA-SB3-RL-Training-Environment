@@ -5,7 +5,7 @@ from CarlaEnv.utils import lr_schedule
 _CONFIG_PPO = {
     "algorithm": "PPO",
     "algorithm_params": dict(
-        learning_rate=lr_schedule(1e-4, 1e-7, 2),
+        learning_rate=lr_schedule(1e-4, 1e-7, 5),
         gae_lambda=0.95,
         clip_range=0.2,
         ent_coef=0.05,
@@ -14,7 +14,7 @@ _CONFIG_PPO = {
         policy_kwargs=dict(activation_fn=th.nn.ReLU,
                            net_arch=[dict(pi=[500, 300], vf=[500, 300])])
     ),
-    "state": ["steer", "throttle", "speed", "angle_next_waypoint", "maneuver", "waypoints"],
+    "state": ["steer", "throttle", "speed", "angle_next_waypoint", "maneuver"],
     "vae_model": "vae_64",
     "action_smoothing": 0.75,
     "reward_fn": "reward_fn5",
@@ -23,6 +23,9 @@ _CONFIG_PPO = {
         max_speed=35.0,  # km/h
         target_speed=25.0,  # kmh
         max_distance=3.0,  # Max distance from center before terminating
+        max_std_center_lane=0.4,
+        max_angle_center_lane=90,
+        penalty_reward=-10,
     ),
     "obs_res": (160, 80),
 }

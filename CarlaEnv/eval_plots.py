@@ -25,12 +25,13 @@ def plot_eval(eval_csv_paths, output_name=None):
     # Load the dataframe
     for e, path in enumerate(eval_csv_paths):
         df = pd.read_csv(path)
-        model_id = df['model_id'].unique()[0]
+        model_id = df.loc[df['model_id'] != 'route', 'model_id'].unique()[0]
         models.append(model_id)
         # Loop over each episode number
         for i, episode_number in enumerate(episode_numbers):
             # Select the rows for the current episode
-            episode_df = df[df['episode'] == episode_number]
+            episode_df = df[(df['episode'] == episode_number) & (df['model_id'] != 'route')]
+            route_df = df[(df['episode'] == episode_number) & (df['model_id'] == 'route')]
 
             # Plot the steer progress
             axs[i][0].plot(episode_df['step'], episode_df['steer'], label=model_id)
@@ -62,14 +63,14 @@ def plot_eval(eval_csv_paths, output_name=None):
             axs[i][6].set_xlabel('Step')
 
             if e == 0:
-                axs[i][7].plot(episode_df['waypoint_x'].head(1), episode_df['waypoint_y'].head(1), 'go',
+                axs[i][7].plot(route_df['route_x'].head(1), route_df['route_y'].head(1), 'go',
                                label='Start')
-                axs[i][7].plot(episode_df['waypoint_x'].tail(1), episode_df['waypoint_y'].tail(1), 'ro',
+                axs[i][7].plot(route_df['route_x'].tail(1), route_df['route_y'].tail(1), 'ro',
                                label='End')
-                axs[i][7].plot(episode_df['waypoint_x'], episode_df['waypoint_y'], label='Waypoints', color="green")
+                axs[i][7].plot(route_df['route_x'], route_df['route_y'], label='Waypoints', color="green")
 
-                axs[i, 7].set_xlim(left=min(-4, min(episode_df['waypoint_x'] - 3)))
-                axs[i, 7].set_xlim(right=max(4, max(episode_df['waypoint_x'] + 3)))
+                axs[i, 7].set_xlim(left=min(-5, min(route_df['route_x'] - 3)))
+                axs[i, 7].set_xlim(right=max(5, max(route_df['route_x'] + 3)))
             axs[i][7].plot(episode_df['vehicle_location_x'], episode_df['vehicle_location_y'], label=model_id)
 
     # Add legend
@@ -85,12 +86,11 @@ def plot_eval(eval_csv_paths, output_name=None):
                     size='large', ha='right', va='center')
 
     # Adjust the spacing between subplots
-    #fig.subplots_adjust(bottom=0.062*len(labels))
+    # fig.subplots_adjust(bottom=0.062*len(labels))
 
     handles, labels = axs[0][7].get_legend_handles_labels()
     fig.legend(handles, labels, loc='lower center', bbox_to_anchor=(0.5, 0.02))
-    fig.tight_layout(rect=(0, 0.09, 1, 1))
-
+    fig.tight_layout(rect=(0, 0.1 + 0.02 * len(labels), 1, 1))
 
     # Adjust the bottom margin to make room for the legend
     # Show the plot
@@ -98,7 +98,7 @@ def plot_eval(eval_csv_paths, output_name=None):
 
 
 if __name__ == '__main__':
-    compare_models = ["PPO_vae64_1677415201-300000", "PPO_vae64_1677415201-30000"]
+    compare_models = ["PPO_vae64_1677524104-1400000", "PPO_vae64_1677415201-300000"]
     eval_csv_paths = []
     for model in compare_models:
         model_id, steps = model.split("-")

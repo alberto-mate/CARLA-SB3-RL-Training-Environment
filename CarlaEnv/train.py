@@ -5,6 +5,8 @@ from stable_baselines3.common.callbacks import CheckpointCallback
 from stable_baselines3.common.logger import configure
 from CarlaEnv.envs.carla_route_vae_env import CarlaRouteEnv
 import time
+
+from CarlaEnv.eval import run_eval
 from vae.utils.misc import LSIZE
 from vae_commons import create_encode_state_fn, load_vae
 
@@ -47,3 +49,14 @@ model.learn(total_timesteps=total_timesteps,
                 save_freq=total_timesteps // 10,
                 save_path=model_dir,
                 name_prefix="model")])
+
+# Calculate the eval for all the models
+env.reset()
+env.eval = True
+files = os.listdir(model_dir)
+zip_files = sorted([f for f in files if f.endswith('.zip')])
+for i, model_file in enumerate(zip_files):
+    if i % 5 == 0 or i == len(zip_files) - 1:
+        model_path = os.path.join(model_dir, model_file)
+        model = PPO.load(model_path, env=env, device='cpu')
+        run_eval(env, model, model_path, record_video=True)
