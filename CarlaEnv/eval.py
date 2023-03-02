@@ -43,8 +43,8 @@ def run_eval(env, model, model_path=None, record_video=False):
         video_recorder.add_frame(rendered_frame)
     else:
         video_recorder = None
-    action = np.zeros(env.action_space.shape[0])
 
+    env.episode_idx = 0
     # While non-terminal state
     while env.episode_idx < 2:
         env.extra_info.append("Eval")

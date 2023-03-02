@@ -5,6 +5,7 @@ import os
 from vae.models import VAE
 import numpy as np
 import gym
+from config import CONFIG
 
 from vae.utils.misc import LSIZE
 from wrappers import vector, get_displacement_vector
@@ -46,7 +47,9 @@ def create_encode_state_fn(vae, measurements_to_include):
                      "speed" in measurements_to_include,
                      "angle_next_waypoint" in measurements_to_include,
                      "maneuver" in measurements_to_include,
-                     "waypoints" in measurements_to_include]
+                     "waypoints" in measurements_to_include,
+                     "rgb_camera" in measurements_to_include,
+                     "seg_camera" in measurements_to_include]
 
     def create_observation_space():
         observation_space = {}
@@ -62,6 +65,9 @@ def create_encode_state_fn(vae, measurements_to_include):
 
         if measure_flags[5]: observation_space['waypoints'] = gym.spaces.Box(low=-50, high=50, shape=(15, 2),
                                                                              dtype=np.float32)
+
+        if measure_flags[6]: observation_space['rgb_camera'] = gym.spaces.Box(low=0, high=255, shape=(CONFIG['obs_res'][1], CONFIG['obs_res'][0], 3), dtype=np.uint8)
+        if measure_flags[7]: observation_space['seg_camera'] = gym.spaces.Box(low=0, high=255, shape=(CONFIG['obs_res'][1], CONFIG['obs_res'][0], 3), dtype=np.uint8)
         return gym.spaces.Dict(observation_space)
 
     def encode_state(env):
@@ -102,15 +108,18 @@ def create_encode_state_fn(vae, measurements_to_include):
                     relative_waypoints[i] = relative_waypoints[i-1] + reference_vector
 
             encoded_state['waypoints'] = relative_waypoints
+
+        if measure_flags[6]: encoded_state['rgb_camera'] = env.observation
+        if measure_flags[7]: encoded_state['seg_camera'] = env.observation
+
         return encoded_state
 
     def decode_state(z):
-        if not vae:
-            return None
         with torch.no_grad():
             sample = torch.tensor(z)
             sample = vae.decode(sample).cpu()
             generated_image = sample.view(3, 80, 160).numpy().transpose((1, 2, 0)) * 255
         return generated_image
-
+    if not vae:
+        decode_state = None
     return create_observation_space(), encode_state, decode_state

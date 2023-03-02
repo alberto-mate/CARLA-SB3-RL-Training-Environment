@@ -9,7 +9,7 @@ def plot_eval(eval_csv_paths, output_name=None):
 
     # Get a list of unique episode numbers
     cols = ['Steer', 'Throttle', 'Speed (km/h)', 'Reward', 'Center Deviation (m)', 'Distance (m)',
-            'Angle next waypoint (grad)', 'Trajectory']
+            'Angle next waypoint (grad)', 'Trayectory']
 
     # Create a figure with subplots for each episode
     fig, axs = plt.subplots(len(episode_numbers), len(cols), figsize=(4 * len(cols), 3 * len(episode_numbers)))
@@ -34,8 +34,8 @@ def plot_eval(eval_csv_paths, output_name=None):
             route_df = df[(df['episode'] == episode_number) & (df['model_id'] == 'route')]
 
             # Plot the steer progress
-            axs[i][0].plot(episode_df['step'], episode_df['steer'], label=model_id)
-            axs[i][0].set_xlabel('Step')
+            axs[i, 0].plot(episode_df['step'], episode_df['steer'], label=model_id)
+            axs[i, 0].set_xlabel('Step')
             axs[i, 0].set_ylim(-1, 1)  # clip y-axis limits to -1 and 1
 
             # Plot the throttle progress

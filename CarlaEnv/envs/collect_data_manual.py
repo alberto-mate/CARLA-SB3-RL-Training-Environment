@@ -1,68 +1,38 @@
 import os
 import shutil
 import subprocess
-
+import time
 import carla
 import gym
 import pygame
 from PIL import Image
 from pygame.locals import *
 
-from hud import HUD
-from wrappers import *
+from CarlaEnv.hud import HUD
+from CarlaEnv.wrappers import *
 
 
 class CarlaDataCollector:
-    """
-        To be able to drive in this environment, either start start CARLA beforehand with:
-
-        Synchronous:  $> ./CarlaUE4.sh Town07 -benchmark -fps=30
-        Asynchronous: $> ./CarlaUE4.sh Town07
-
-        Or pass argument -start_carla in the command-line.
-        Note that ${CARLA_ROOT} needs to be set to CARLA's top-level directory
-        in order for this option to work.
-    """
-
-    def __init__(self, host="127.0.0.1", port=2000, 
-                 viewer_res=(1280, 720), obs_res=(1280, 720),
-                 num_images_to_save=12000, output_dir="images",
-                 synchronous=True, fps=30, action_smoothing=0.9,
+    def __init__(self, host="127.0.0.1", port=2000,
+                 viewer_res=(1280, 720), obs_res=(160, 80),
+                 num_images_to_save=12000,
+                 num_init_image=10000,
+                 output_dir="images", fps=30, action_smoothing=0.9,
                  start_carla=True):
         """
-            Initializes an environment that can be used to save camera/sensor data
-            from driving around manually in CARLA.
+        A class for manually collecting image data from a running CARLA environment.
 
-            Connects to a running CARLA enviromment (tested on version 0.9.5) and
-            spwans a lincoln mkz2017 passenger car with automatic transmission.
-
-            host (string):
-                IP address of the CARLA host
-            port (short):
-                Port used to connect to CARLA
-            viewer_res (int, int):
-                Resolution of the spectator camera (placed behind the vehicle by default)
-                as a (width, height) tuple
-            obs_res (int, int):
-                Resolution of the observation camera (placed on the dashboard by default)
-                as a (width, height) tuple
-            num_images_to_save (int):
-                Number of images to collect
-            output_dir (str):
-                Output directory to save the images to
-            action_smoothing:
-                Scalar used to smooth the incomming action signal.
-                1.0 = max smoothing, 0.0 = no smoothing
-            fps (int):
-                FPS of the client. If fps <= 0 then use unbounded FPS.
-                Note: Sensors will have a tick rate of fps when fps > 0, 
-                otherwise they will tick as fast as possible.
-            synchronous (bool):
-                If True, run in synchronous mode (read the comment above for more info)
-            start_carla (bool):
-                Automatically start CALRA when True. Note that you need to
-                set the environment variable ${CARLA_ROOT} to point to
-                the CARLA root directory for this option to work.
+        Parameters:
+            - host (str): IP address of the CARLA host
+            - port (int): Port used to connect to CARLA
+            - viewer_res (tuple[int, int]): Resolution of the spectator camera as a (width, height) tuple
+            - obs_res (tuple[int, int]): Resolution of the observation camera as a (width, height) tuple
+            - num_images_to_save (int): Maximum number of images to collect
+            - output_dir (str): Directory in which to save collected images
+            - fps (int): FPS of the client. If fps <= 0 then use unbounded FPS.
+            - action_smoothing (float): Scalar used to smooth the incoming action signal. 1.0 = max smoothing, 0.0 = no smoothing
+            - start_carla (bool): Whether to automatically start CARLA when True. Note that you need to set the environment variable
+                ${CARLA_ROOT} to point to the CARLA root directory for this option to work.
         """
 
         # Start CARLA from CARLA_ROOT
@@ -70,7 +40,6 @@ class CarlaDataCollector:
         if start_carla:
             if "CARLA_ROOT" not in os.environ:
                 raise Exception("${CARLA_ROOT} has not been set!")
-            carla_path = os.environ["CARLA_ROOT"]
             carla_path = os.path.join(os.environ["CARLA_ROOT"], "CarlaUE4.sh")
             launch_command = [carla_path]
             launch_command += ['-quality_level=Low']
@@ -78,12 +47,10 @@ class CarlaDataCollector:
             launch_command += ["-fps=%i" % fps]
             launch_command += ['-RenderOffScreen']
             launch_command += ['-prefernvidia']
-            # launch_command += ['-dx11']
             print("Running command:")
             print(" ".join(launch_command))
             self.carla_process = subprocess.Popen(launch_command, stdout=subprocess.DEVNULL)
             print("Waiting for CARLA to initialize")
-
             # ./CarlaUE4.sh -quality_level=Low -benchmark -fps=15 -RenderOffScreen
             time.sleep(5)
 
@@ -99,7 +66,7 @@ class CarlaDataCollector:
         self.clock = pygame.time.Clock()
 
         # Setup gym environment
-        self.action_space = gym.spaces.Box(np.array([-1, 0]), np.array([1, 1]), dtype=np.float32) # steer, throttle
+        self.action_space = gym.spaces.Box(np.array([-1, 0]), np.array([1, 1]), dtype=np.float32)  # steer, throttle
         self.observation_space = gym.spaces.Box(low=0.0, high=1.0, shape=(*obs_res, 3), dtype=np.float32)
         self.fps = fps
         self.spawn_point = 1
@@ -110,17 +77,16 @@ class CarlaDataCollector:
         self.extra_info = []
         self.num_saved_observations = 0
         self.num_images_to_save = num_images_to_save
-        self.observation = {key: None for key in ["rgb", "segmentation"]}        # Last received observations
+        self.num_init_image = num_init_image
+        self.observation = {key: None for key in ["rgb", "segmentation"]}  # Last received observations
         self.observation_buffer = {key: None for key in ["rgb", "segmentation"]}
-        self.viewer_image = self.viewer_image_buffer = None                   # Last received image to show in the viewer
+        self.viewer_image = self.viewer_image_buffer = None  # Last received image to show in the viewer
 
         self.output_dir = output_dir
-        #os.makedirs(os.path.join(self.output_dir, "rgb"))
-        #os.makedirs(os.path.join(self.output_dir, "segmentation"))
+        os.makedirs(os.path.join(self.output_dir, "rgb"), exist_ok=True)
+        os.makedirs(os.path.join(self.output_dir, "segmentation"), exist_ok=True)
 
-
-
-        self.autopilot = True
+        self.autopilot = False
         self.world = None
         try:
             # Connect to carla
@@ -129,8 +95,6 @@ class CarlaDataCollector:
 
             # Create world wrapper
             self.world = World(self.client)
-
-
 
             settings = self.world.get_settings()
             settings.fixed_delta_seconds = 1 / self.fps
@@ -159,20 +123,19 @@ class CarlaDataCollector:
                                       attach_to=self.vehicle, on_recv_image=lambda e: self._set_observation_image("rgb", e))
             self.dashcam_seg = Camera(self.world, out_width, out_height,
                                       transform=sensor_transforms["dashboard"],
-                                      attach_to=self.vehicle, on_recv_image=lambda e: self._set_observation_image("segmentation", e),
+                                      attach_to=self.vehicle,
+                                      on_recv_image=lambda e: self._set_observation_image("segmentation", e),
                                       camera_type="sensor.camera.semantic_segmentation", custom_palette=True)
-            self.camera  = Camera(self.world, width, height,
-                                  transform=sensor_transforms["spectator"],
-                                  attach_to=self.vehicle, on_recv_image=lambda e: self._set_viewer_image(e))
+            self.camera = Camera(self.world, width, height,
+                                 transform=sensor_transforms["spectator"],
+                                 attach_to=self.vehicle, on_recv_image=lambda e: self._set_viewer_image(e))
 
             tm = self.client.get_trafficmanager()
             tm_port = tm.get_port()
-            #self.vehicle.set_autopilot(True, tm_port)
+            self.vehicle.set_autopilot(self.autopilot, tm_port)
             tm.vehicle_percentage_speed_difference(self.vehicle.get_carla_actor(), -30)
 
             tm.ignore_lights_percentage(self.vehicle.get_carla_actor(), 100.0)
-
-
         except Exception as e:
             self.close()
             raise e
@@ -195,16 +158,17 @@ class CarlaDataCollector:
         for i, (_, obs) in enumerate(self.observation.items()):
             obs_h, obs_w = obs.shape[:2]
             view_h, view_w = self.viewer_image.shape[:2]
-            pos = (view_w - obs_w - 10, obs_h * i + 10 * (i+1))
+            pos = (view_w - obs_w - 10, obs_h * i + 10 * (i + 1))
             self.display.blit(pygame.surfarray.make_surface(obs.swapaxes(0, 1)), pos)
 
         # Save current observations
         if self.recording and self.vehicle.get_speed() > 2.0:
             for obs_type, obs in self.observation.items():
                 img = Image.fromarray(obs)
-                img.save(os.path.join(self.output_dir, obs_type, "{}.png".format(self.num_saved_observations)))
+                img.save(
+                    os.path.join(self.output_dir, obs_type, "{}.png".format(self.num_saved_observations + self.num_init_image)))
             self.num_saved_observations += 1
-            if self.num_saved_observations >= self.num_images_to_save:
+            if self.num_saved_observations >= self.num_images_to_save - self.num_init_image:
                 self.done = True
 
         # Render HUDw
@@ -213,7 +177,7 @@ class CarlaDataCollector:
             "Progress: %.2f%%" % (self.num_saved_observations / self.num_images_to_save * 100.0)
         ])
         self.hud.render(self.display, extra_info=self.extra_info)
-        self.extra_info = [] # Reset extra info list
+        self.extra_info = []  # Reset extra info list
 
         # Render to screen
         pygame.display.flip()
@@ -225,16 +189,16 @@ class CarlaDataCollector:
         # Take action
         if action is not None:
             steer, throttle = [float(a) for a in action]
-            #steer, throttle, brake = [float(a) for a in action]
-            self.vehicle.control.steer    = self.vehicle.control.steer * self.action_smoothing + steer * (1.0-self.action_smoothing)
-            self.vehicle.control.throttle = self.vehicle.control.throttle * self.action_smoothing + throttle * (1.0-self.action_smoothing)
-            #self.vehicle.control.brake = self.vehicle.control.brake * self.action_smoothing + brake * (1.0-self.action_smoothing)
-        
+            # steer, throttle, brake = [float(a) for a in action]
+            self.vehicle.control.steer = self.vehicle.control.steer * self.action_smoothing + steer * (
+                    1.0 - self.action_smoothing)
+            self.vehicle.control.throttle = self.vehicle.control.throttle * self.action_smoothing + throttle * (
+                    1.0 - self.action_smoothing)
+
         # Tick game
         self.world.tick()
         self.clock.tick()
         self.hud.tick(self.world, self.clock)
-
 
         # Get most recent observation and viewer image
         self.observation["rgb"] = self._get_observation("rgb")
@@ -279,8 +243,10 @@ class CarlaDataCollector:
     def _set_viewer_image(self, image):
         self.viewer_image_buffer = image
 
+
 if __name__ == "__main__":
     import argparse
+
     argparser = argparse.ArgumentParser(description="Run this script to drive around with WASD/arrow keys. " +
                                                     "Press SPACE to start recording RGB and semanting segmentation images from the front facing camera to the disk")
     argparser.add_argument("--host", default="localhost", type=str, help="IP of the host server (default: 127.0.0.1)")
@@ -289,14 +255,14 @@ if __name__ == "__main__":
     argparser.add_argument("--obs_res", default="160x80", type=str, help="Output resolution (default: same as --res)")
     argparser.add_argument("--output_dir", default="images", type=str, help="Directory to save images to")
     argparser.add_argument("--num_images", default=12000, type=int, help="Number of images to collect")
-    argparser.add_argument("--fps", default=20, type=int, help="FPS. Delta time between samples is 1/FPS")
-    argparser.add_argument("--synchronous", type=int, default=True, help="Set this to True when running in a synchronous environment")
+    argparser.add_argument("--num_init_image", default=0, type=int, help="Init number to start collecting")
+    argparser.add_argument("--fps", default=15, type=int, help="FPS. Delta time between samples is 1/FPS")
     args = argparser.parse_args()
 
     # Remove existing output directory
     # if os.path.isdir(args.output_dir):
-        #shutil.rmtree(args.output_dir)
-    #os.makedirs(args.output_dir)
+    # shutil.rmtree(args.output_dir)
+    # os.makedirs(args.output_dir)
 
     # Parse viewer_res and obs_res
     viewer_res = [int(x) for x in args.viewer_res.split("x")]
@@ -308,8 +274,9 @@ if __name__ == "__main__":
     # Create vehicle and actors for data collecting
     data_collector = CarlaDataCollector(host=args.host, port=args.port,
                                         viewer_res=viewer_res, obs_res=obs_res, fps=args.fps,
-                                        num_images_to_save=args.num_images, output_dir=args.output_dir,
-                                        synchronous=args.synchronous, start_carla=True)
+                                        num_images_to_save=args.num_images, num_init_image=args.num_init_image,
+                                        output_dir=args.output_dir,
+                                        start_carla=True)
     action = np.zeros(data_collector.action_space.shape[0])
 
     # While there are more images to collect
@@ -329,6 +296,6 @@ if __name__ == "__main__":
         # Take action
         data_collector.step(action)
         data_collector.save_observation()
-        
+
     # Destroy carla actors
     data_collector.close()

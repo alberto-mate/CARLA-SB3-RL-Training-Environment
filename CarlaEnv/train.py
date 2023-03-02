@@ -6,7 +6,6 @@ from stable_baselines3.common.logger import configure
 from CarlaEnv.envs.carla_route_vae_env import CarlaRouteEnv
 import time
 
-from CarlaEnv.eval import run_eval
 from vae.utils.misc import LSIZE
 from vae_commons import create_encode_state_fn, load_vae
 
@@ -16,6 +15,11 @@ from utils import HParamCallback, TensorboardCallback, write_json
 from config import CONFIG
 
 log_dir = './tensorboard'
+#reload_model = "./tensorboard/PPO_vae64_1677524104/model_1400000_steps.zip"
+reload_model = ""
+total_timesteps = 800_000
+
+seed = CONFIG["seed"]
 
 algorithm_dict = {"PPO": PPO, "DQN": DQN}
 
@@ -23,8 +27,9 @@ if CONFIG["algorithm"] not in algorithm_dict:
     raise ValueError("Invalid algorithm name")
 
 AlgorithmRL = algorithm_dict[CONFIG["algorithm"]]
-
-vae = load_vae(f'../vae/log_dir/{CONFIG["vae_model"]}', LSIZE)
+vae = None
+if CONFIG["vae_model"]:
+    vae = load_vae(f'../vae/log_dir/{CONFIG["vae_model"]}', LSIZE)
 observation_space, encode_state_fn, decode_vae_fn = create_encode_state_fn(vae, CONFIG["state"])
 
 env = CarlaRouteEnv(obs_res=CONFIG["obs_res"],
@@ -34,29 +39,23 @@ env = CarlaRouteEnv(obs_res=CONFIG["obs_res"],
                     fps=15, action_smoothing=CONFIG["action_smoothing"],
                     action_space_type='continuous', activate_spectator=False)
 
-model = AlgorithmRL('MultiInputPolicy', env, verbose=1, seed=100, tensorboard_log=log_dir, device='cpu',
-                    **CONFIG["algorithm_params"])
+if reload_model == "":
+    model = AlgorithmRL('MultiInputPolicy', env, verbose=1, seed=seed, tensorboard_log=log_dir, device='cpu',
+                        **CONFIG["algorithm_params"])
+    model_suffix = f"{int(time.time())}"
+else:
+    model = AlgorithmRL.load(reload_model, env=env, device='cpu', seed=seed, **CONFIG["algorithm_params"])
+    model_suffix = f"{reload_model.split('/')[-2].split('_')[-1]}_finetuning"
 
-model_name = f'{model.__class__.__name__}_{CONFIG["vae_model"].replace("_", "")}_{int(time.time())}'
+model_name = f'{model.__class__.__name__}_{model_suffix}'
+
 model_dir = os.path.join(log_dir, model_name)
 new_logger = configure(model_dir, ["stdout", "csv", "tensorboard"])
 model.set_logger(new_logger)
 write_json(CONFIG, os.path.join(model_dir, 'config.json'))
 
-total_timesteps = 300_000
 model.learn(total_timesteps=total_timesteps,
             callback=[HParamCallback(CONFIG), TensorboardCallback(1), CheckpointCallback(
                 save_freq=total_timesteps // 10,
                 save_path=model_dir,
-                name_prefix="model")])
-
-# Calculate the eval for all the models
-env.reset()
-env.eval = True
-files = os.listdir(model_dir)
-zip_files = sorted([f for f in files if f.endswith('.zip')])
-for i, model_file in enumerate(zip_files):
-    if i % 5 == 0 or i == len(zip_files) - 1:
-        model_path = os.path.join(model_dir, model_file)
-        model = PPO.load(model_path, env=env, device='cpu')
-        run_eval(env, model, model_path, record_video=True)
+                name_prefix="model")], reset_num_timesteps=False)

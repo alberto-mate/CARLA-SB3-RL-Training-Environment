@@ -28,7 +28,7 @@ import itertools
 intersection_routes = itertools.cycle(
     [(78, 76), (69, 48), (57, 48), (71, 70), (42, 64), (1, 38), (30, 56), (6, 17), (14, 55), (52, 62), (91, 96),
      (45, 80), (35, 71), (65, 61)])
-eval_routes = itertools.cycle([(3, 1), (0, 72), (21, 26), (40, 44), (68, 43), (65, 96)])
+eval_routes = itertools.cycle([(3, 1), (0, 72)])
 
 discrete_actions = {
     0: [-1, 1], 1: [0, 1], 2: [1, 1], 3: [0, 0],
@@ -36,29 +36,6 @@ discrete_actions = {
 
 
 class CarlaRouteEnv(gym.Env):
-    """
-        This is a simple CARLA environment where the goal is to drive in a lap
-        around the outskirts of Town07. This environment can be used to compare
-        different models/reward functions in a realtively predictable environment.
-
-        To run an agent in this environment, either start start CARLA beforehand with:
-
-        Synchronous:  $> ./CarlaUE4.sh Town07 -benchmark -fps=30
-        Asynchronous: $> ./CarlaUE4.sh Town07
-
-        Or, pass argument -start_carla in the command-line.
-        Note that ${CARLA_ROOT} needs to be set to CARLA's top-level directory
-        in order for this option to work.
-
-        And also remember to set the -fps and -synchronous arguments to match the
-        command-line arguments of the simulator (not needed with -start_carla.)
-
-        Note that you may also need to add the following line to
-        Unreal/CarlaUE4/Config/DefaultGame.ini to have the map included in the package:
-
-        +MapsToCook=(FilePath="/Game/Carla/Maps/Town07")
-    """
-
     metadata = {
         "render.modes": ["human", "rgb_array", "rgb_array_no_hud", "state_pixels"]
     }
@@ -74,44 +51,24 @@ class CarlaRouteEnv(gym.Env):
                  start_carla=True,
                  eval=False):
         """
-            Initializes a gym-like environment that can be used to interact with CARLA.
+        A gym-like environment for interacting with a running CARLA environment and controlling a Lincoln MKZ2017 vehicle.
 
-            Connects to a running CARLA enviromment (tested on version 0.9.5) and
-            spwans a lincoln mkz2017 passenger car with automatic transmission.
-
-            This vehicle can be controlled using the step() function,
-            taking an action that consists of [steering_angle, throttle].
-
-            host (string):
-                IP address of the CARLA host
-            port (short):
-                Port used to connect to CARLA
-            viewer_res (int, int):
-                Resolution of the spectator camera (placed behind the vehicle by default)
-                as a (width, height) tuple
-            obs_res (int, int):
-                Resolution of the observation camera (placed on the dashboard by default)
-                as a (width, height) tuple
-            reward_fn (function):
-                Custom reward function that is called every step.
-                If None, no reward function is used.
-            encode_state_fn (function):
-                Function that takes the image (of obs_res resolution) from the
-                observation camera and encodes it to some state vector to returned
-                by step(). If None, step() returns the full image.
-            action_smoothing:
-                Scalar used to smooth the incomming action signal.
-                1.0 = max smoothing, 0.0 = no smoothing
-            fps (int):
-                FPS of the client. If fps <= 0 then use unbounded FPS.
-                Note: Sensors will have a tick rate of fps when fps > 0,
-                otherwise they will tick as fast as possible.
-            synchronous (bool):
-                If True, run in synchronous mode (read the comment above for more info)
-            start_carla (bool):
-                Automatically start CALRA when True. Note that you need to
-                set the environment variable ${CARLA_ROOT} to point to
-                the CARLA root directory for this option to work.
+        Parameters:
+            - host (str): IP address of the CARLA host
+            - port (int): Port used to connect to CARLA
+            - viewer_res (tuple[int, int]): Resolution of the spectator camera as a (width, height) tuple
+            - obs_res (tuple[int, int]): Resolution of the observation camera as a (width, height) tuple
+            - reward_fn (function): Custom reward function that is called every step. If None, no reward function is used.
+            - observation_space: Custom observation space. If None, the default observation space is used.
+            - encode_state_fn (function): Function that encodes the image from the observation camera to a state vector returned by step(). If None, the full image is returned.
+            - decode_vae_fn (function): Function that decodes a state vector to an image. Used only if encode_state_fn is not None.
+            - fps (int): FPS of the client. If fps <= 0 then use unbounded FPS.
+            - action_smoothing (float): Scalar used to smooth the incoming action signal. 1.0 = max smoothing, 0.0 = no smoothing
+            - action_space_type (str): Type of action space. Can be "continuous" or "discrete".
+            - activate_spectator (bool): Whether to activate the spectator camera. Default is True.
+            - activate_lidar (bool): Whether to activate the lidar sensor. Default is False.
+            - start_carla (bool): Whether to automatically start CARLA when True. Note that you need to set the environment variable ${CARLA_ROOT} to point to the CARLA root directory for this option to work.
+            - eval (bool): Whether the environment is used for evaluation or training. Default is False.
         """
 
         self.carla_process = None
@@ -126,7 +83,6 @@ class CarlaRouteEnv(gym.Env):
             launch_command += ['-RenderOffScreen']
             launch_command += ['-prefernvidia']
             launch_command += [f'-carla-world-port={port}']
-            # launch_command += ['-dx11']
             print("Running command:")
             print(" ".join(launch_command))
             self.carla_process = subprocess.Popen(launch_command, stdout=subprocess.DEVNULL)
@@ -147,14 +103,12 @@ class CarlaRouteEnv(gym.Env):
         self.clock = pygame.time.Clock()
 
         # Setup gym environment
-        self.seed(100)
         self.action_space_type = action_space_type
         if self.action_space_type == "continuous":
             self.action_space = gym.spaces.Box(np.array([-1, 0]), np.array([1, 1]), dtype=np.float32)  # steer, throttle
         elif self.action_space_type == "discrete":
             self.action_space = gym.spaces.Discrete(len(discrete_actions))
 
-        # self.observation_space = gym.spaces.Box(low=0, high=255, shape=(out_height, out_width, 3), dtype=np.uint8)
         self.observation_space = observation_space
 
         self.fps = fps
@@ -194,11 +148,17 @@ class CarlaRouteEnv(gym.Env):
             self.hud.set_vehicle(self.vehicle)
             self.world.on_tick(self.hud.on_world_tick)
 
-            # Create cameras
-
+            seg_settings = {}
+            if "seg_camera" in self.observation_space.keys():
+                seg_settings.update({
+                    'camera_type': "sensor.camera.semantic_segmentation",
+                    'custom_palette': True
+                })
             self.dashcam = Camera(self.world, out_width, out_height,
                                   transform=sensor_transforms["dashboard"],
-                                  attach_to=self.vehicle, on_recv_image=lambda e: self._set_observation_image(e))
+                                  attach_to=self.vehicle, on_recv_image=lambda e: self._set_observation_image(e),
+                                  **seg_settings)
+
             if self.activate_spectator:
                 self.camera = Camera(self.world, width, height,
                                      transform=sensor_transforms["spectator"],
@@ -212,16 +172,11 @@ class CarlaRouteEnv(gym.Env):
         # Reset env to set initial state
         self.reset()
 
-    def seed(self, seed=None):
-        self.np_random, seed = seeding.np_random(seed)
-        return [seed]
-
     def reset(self, is_training=False):
         # Create new route
         self.num_routes_completed = -1
         self.episode_idx += 1
         self.new_route()
-        # Set env vars
 
         # Two different variables to differ between success episode and fail episode
         self.terminal_state = False  # Set to True when we want to end episode
@@ -252,26 +207,24 @@ class CarlaRouteEnv(gym.Env):
         # Do a soft reset (teleport vehicle)
         self.vehicle.control.steer = float(0.0)
         self.vehicle.control.throttle = float(0.0)
-        # self.vehicle.control.brake = float(0.0)
-        # self.vehicle.tick()
         self.vehicle.set_simulate_physics(False)  # Reset the car's physics
 
         # Generate waypoints along the lap
         if not self.eval:
             if self.episode_idx % 5 == 0 and self.num_routes_completed == -1:
-                spawm_points_list = [self.world.map.get_spawn_points()[index] for index in next(intersection_routes)]
+                spawn_points_list = [self.world.map.get_spawn_points()[index] for index in next(intersection_routes)]
             else:
-                spawm_points_list = self.np_random.choice(self.world.map.get_spawn_points(), 2, replace=False)
+                spawn_points_list = np.random.choice(self.world.map.get_spawn_points(), 2, replace=False)
         else:
-            spawm_points_list = [self.world.map.get_spawn_points()[index] for index in next(eval_routes)]
+            spawn_points_list = [self.world.map.get_spawn_points()[index] for index in next(eval_routes)]
         route_length = 1
         while route_length <= 1:
             self.start_wp, self.end_wp = [self.world.map.get_waypoint(spawn.location) for spawn in
-                                          spawm_points_list]
+                                          spawn_points_list]
             self.route_waypoints = compute_route_waypoints(self.world.map, self.start_wp, self.end_wp, resolution=1.0)
             route_length = len(self.route_waypoints)
             if route_length <= 1:
-                spawm_points_list = self.np_random.choice(self.world.map.get_spawn_points(), 2, replace=False)
+                spawn_points_list = np.random.choice(self.world.map.get_spawn_points(), 2, replace=False)
 
         self.distance_from_center_history = deque(maxlen=30)
 
@@ -318,10 +271,9 @@ class CarlaRouteEnv(gym.Env):
         ])
         if self.activate_spectator:
             # Blit image from spectator camera
-            self.viewer_image = self.draw_path(self.camera, self.viewer_image)
+            self.viewer_image = self._draw_path(self.camera, self.viewer_image)
             self.display.blit(pygame.surfarray.make_surface(self.viewer_image.swapaxes(0, 1)), (0, 0))
             # Superimpose current observation into top-right corner
-            # view_h, view_w = self.viewer_image.shape[:2]
         obs_h, obs_w = self.observation.shape[:2]
         pos_observation = (self.display.get_size()[0] - obs_w - 10, 10)
         self.display.blit(pygame.surfarray.make_surface(self.observation.swapaxes(0, 1)), pos_observation)
@@ -354,7 +306,6 @@ class CarlaRouteEnv(gym.Env):
         if self.closed:
             raise Exception("CarlaEnv.step() called after the environment was closed." +
                             "Check for info[\"closed\"] == True in the learning loop.")
-
         # Take action
         if action is not None:
             # Create new route on route completion
@@ -369,15 +320,9 @@ class CarlaRouteEnv(gym.Env):
             elif self.action_space_type == "discrete":
                 steer, throttle = discrete_actions[action]
 
-            # steer, throttle, brake = [float(a) for a in action]
-
             self.vehicle.control.steer = smooth_action(self.vehicle.control.steer, steer, self.action_smoothing)
             self.vehicle.control.throttle = smooth_action(self.vehicle.control.throttle, throttle,
                                                           self.action_smoothing)
-
-            # self.vehicle.tick()
-            # self.vehicle.control.brake = self.vehicle.control.brake * self.action_smoothing + brake * (1.0-self.action_smoothing)
-
         # Tick game
         self.world.tick()
         self.clock.tick()
@@ -495,7 +440,7 @@ class CarlaRouteEnv(gym.Env):
             carla.Color(0, 0, 255),
             life_time, False)
 
-    def draw_path(self, camera, image):
+    def _draw_path(self, camera, image):
         vehicle_vector = vector(self.vehicle.get_transform().location)
         # Get the world to camera matrix
         world_2_camera = np.array(camera.get_transform().get_inverse_matrix())
