@@ -17,7 +17,7 @@ def plot_eval(eval_csv_paths, output_name=None):
     if len(eval_csv_paths) == 1:
         eval_plot_path = eval_csv_paths[0].replace(".csv", ".png")
     else:
-        os.makedirs('./tensorboard/eval_plots', exist_ok=True)
+        os.makedirs('tensorboard/eval_plots', exist_ok=True)
         eval_plot_path = f'./tensorboard/eval_plots/{output_name}'
 
     models = ['Waypoints']
@@ -102,5 +102,5 @@ if __name__ == '__main__':
     eval_csv_paths = []
     for model in compare_models:
         model_id, steps = model.split("-")
-        eval_csv_paths.append(os.path.join("./tensorboard", model_id, "eval", f"model_{steps}_steps_eval.csv"))
+        eval_csv_paths.append(os.path.join("tensorboard", model_id, "eval", f"model_{steps}_steps_eval.csv"))
     plot_eval(eval_csv_paths, output_name="+".join(compare_models))

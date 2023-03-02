@@ -3,18 +3,18 @@ import os
 from stable_baselines3 import PPO, DQN
 from stable_baselines3.common.callbacks import CheckpointCallback
 from stable_baselines3.common.logger import configure
-from CarlaEnv.envs.carla_route_vae_env import CarlaRouteEnv
+from carla_env.envs.carla_route_env import CarlaRouteEnv
 import time
 
 from vae.utils.misc import LSIZE
-from vae_commons import create_encode_state_fn, load_vae
+from carla_env.state_commons import create_encode_state_fn, load_vae
 
-from rewards import reward_functions
+from carla_env.rewards import reward_functions
 from utils import HParamCallback, TensorboardCallback, write_json
 
 from config import CONFIG
 
-log_dir = './tensorboard'
+log_dir = 'tensorboard'
 #reload_model = "./tensorboard/PPO_vae64_1677524104/model_1400000_steps.zip"
 reload_model = ""
 total_timesteps = 800_000
@@ -29,7 +29,7 @@ if CONFIG["algorithm"] not in algorithm_dict:
 AlgorithmRL = algorithm_dict[CONFIG["algorithm"]]
 vae = None
 if CONFIG["vae_model"]:
-    vae = load_vae(f'../vae/log_dir/{CONFIG["vae_model"]}', LSIZE)
+    vae = load_vae(f'./vae/log_dir/{CONFIG["vae_model"]}', LSIZE)
 observation_space, encode_state_fn, decode_vae_fn = create_encode_state_fn(vae, CONFIG["state"])
 
 env = CarlaRouteEnv(obs_res=CONFIG["obs_res"],

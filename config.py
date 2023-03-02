@@ -1,6 +1,6 @@
 import torch as th
 
-from CarlaEnv.utils import lr_schedule
+from utils import lr_schedule
 
 _CONFIG_PPO = {
     "algorithm": "PPO",

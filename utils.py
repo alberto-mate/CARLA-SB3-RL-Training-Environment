@@ -1,11 +1,11 @@
 import types
 
 import cv2
-import numpy as np
-import scipy.signal
-import tensorflow as tf
 import math
 import json
+from stable_baselines3.common.callbacks import BaseCallback
+from stable_baselines3.common.logger import HParam
+
 
 
 def write_json(data, path):
@@ -39,8 +39,6 @@ class VideoRecorder():
         self.release()
 
 
-from stable_baselines3.common.callbacks import BaseCallback
-from stable_baselines3.common.logger import HParam
 
 
 class HParamCallback(BaseCallback):

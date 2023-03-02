@@ -1,21 +1,19 @@
 import os.path
 
-import pygame
-from pygame.locals import *
 from stable_baselines3 import PPO, DQN
 import pandas as pd
 import numpy as np
 
 from utils import VideoRecorder
-from CarlaEnv.vae_commons import create_encode_state_fn, load_vae
-from CarlaEnv.rewards import reward_functions
+from carla_env.state_commons import create_encode_state_fn, load_vae
+from carla_env.rewards import reward_functions
 
 from config import CONFIG
 
 from vae.utils.misc import LSIZE
-from wrappers import vector, get_displacement_vector
-from CarlaEnv.envs.carla_route_vae_env import CarlaRouteEnv
-from CarlaEnv.eval_plots import plot_eval
+from carla_env.wrappers import vector, get_displacement_vector
+from carla_env.envs.carla_route_env import CarlaRouteEnv
+from eval_plots import plot_eval
 
 
 def run_eval(env, model, model_path=None, record_video=False):
@@ -96,14 +94,14 @@ def run_eval(env, model, model_path=None, record_video=False):
 
 
 if __name__ == "__main__":
-    model_path = "./tensorboard/PPO_vae64_1677524104/model_1400000_steps.zip"
+    model_path = "tensorboard/PPO_vae64_1677524104/model_1400000_steps.zip"
 
     algorithm_dict = {"PPO": PPO, "DQN": DQN}
 
     if CONFIG["algorithm"] not in algorithm_dict:
         raise ValueError("Invalid algorithm name")
 
-    vae = load_vae(f'../vae/log_dir/{CONFIG["vae_model"]}', LSIZE)
+    vae = load_vae(f'./vae/log_dir/{CONFIG["vae_model"]}', LSIZE)
     observation_space, encode_state_fn, decode_vae_fn = create_encode_state_fn(vae, CONFIG["state"])
 
     env = CarlaRouteEnv(obs_res=CONFIG["obs_res"],

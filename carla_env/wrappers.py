@@ -3,18 +3,6 @@ import numpy as np
 import weakref
 
 
-def print_transform(transform):
-    print("Location(x={:.2f}, y={:.2f}, z={:.2f}) Rotation(pitch={:.2f}, yaw={:.2f}, roll={:.2f})".format(
-        transform.location.x,
-        transform.location.y,
-        transform.location.z,
-        transform.rotation.pitch,
-        transform.rotation.yaw,
-        transform.rotation.roll
-    )
-    )
-
-
 def get_actor_display_name(actor, truncate=250):
     name = " ".join(actor.type_id.replace("_", ".").title().split(".")[1:])
     return (name[:truncate - 1] + u"\u2026") if len(name) > truncate else name
@@ -100,6 +88,7 @@ def vector(v):
 def smooth_action(old_value, new_value, smooth_factor):
     return old_value * smooth_factor + new_value * (1.0 - smooth_factor)
 
+
 def build_projection_matrix(w, h, fov):
     focal = w / (2.0 * np.tan(fov * np.pi / 360.0))
     K = np.identity(3)
@@ -107,6 +96,7 @@ def build_projection_matrix(w, h, fov):
     K[0, 2] = w / 2.0
     K[1, 2] = h / 2.0
     return K
+
 
 def get_image_point(loc, K, w2c):
     # Calculate 2D projection of 3D coordinate

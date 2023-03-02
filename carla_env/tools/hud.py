@@ -25,10 +25,8 @@ Use ARROWS or WASD keys for control.
 """
 
 import pygame
-import datetime
 import math
-from wrappers import get_actor_display_name
-
+from carla_env.wrappers import get_actor_display_name
 #===============================================================================
 # HUD
 #===============================================================================

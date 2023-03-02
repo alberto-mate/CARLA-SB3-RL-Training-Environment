@@ -3,7 +3,6 @@ import os
 import subprocess
 import argparse
 
-from CarlaEnv.wrappers import *
 import time
 
 

@@ -3,16 +3,14 @@ import subprocess
 import sys
 import glob
 import time
-
 import gym
 import pygame
 import cv2
-from gym.utils import seeding
 from pygame.locals import *
 
-from CarlaEnv.hud import HUD
-from CarlaEnv.agents.navigation.planner import RoadOption, compute_route_waypoints
-from CarlaEnv.wrappers import *
+from carla_env.tools.hud import HUD
+from carla_env.navigation.planner import RoadOption, compute_route_waypoints
+from carla_env.wrappers import *
 
 try:
     sys.path.append(glob.glob('../carla/dist/carla-*%d.%d-%s.egg' % (

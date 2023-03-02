@@ -1,15 +1,12 @@
 import os
-import shutil
 import subprocess
 import time
-import carla
 import gym
 import pygame
 from PIL import Image
 from pygame.locals import *
 
-from CarlaEnv.hud import HUD
-from CarlaEnv.wrappers import *
+from CarlaEnv.tools.hud import HUD
 
 
 class CarlaDataCollector:

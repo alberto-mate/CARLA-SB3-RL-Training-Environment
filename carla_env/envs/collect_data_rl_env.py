@@ -2,19 +2,16 @@ import os
 import subprocess
 import sys
 import glob
-import time
 
 import gym
 import pygame
 from gym.utils import seeding
 from pygame.locals import *
-import numpy as np
 from PIL import Image
 
-from CarlaEnv.hud import HUD
-from CarlaEnv.agents.navigation.planner import RoadOption, compute_route_waypoints
-from CarlaEnv.wrappers import *
-from vae.utils.misc import LSIZE
+from CarlaEnv.tools.hud import HUD
+from CarlaEnv.navigation.planner import compute_route_waypoints
+
 try:
     sys.path.append(glob.glob('../carla/dist/carla-*%d.%d-%s.egg' % (
         sys.version_info.major,
@@ -484,7 +481,7 @@ class CarlaCollectDataRLEnv(gym.Env):
 from stable_baselines3 import PPO
 import time
 from vae.utils.misc import LSIZE
-from CarlaEnv.vae_commons import create_encode_state_fn, load_vae
+from CarlaEnv.state_commons import create_encode_state_fn, load_vae
 
 from CarlaEnv.rewards import reward_fn
 from CarlaEnv.callbacks import HParamCallback, TensorboardCallback
@@ -511,6 +508,6 @@ env = CarlaCollectDataRLEnv(obs_res=(160, 80), viewer_res=(160 * 7, 80 * 7),
 
 
 # model = PPO('MultiInputPolicy', env, verbose=1, device='cpu', **ppo_hyperparam)
-model = PPO.load("/home/albertomate/Documentos/carla/PythonAPI/my-carla/CarlaEnv/tensorboard/PPO_VAE64_1675553190.3264425/PPO_VAE64_1675553190.3264425_1500000", env=env, device='cpu')
+model = PPO.load("/tensorboard/PPO_VAE64_1675553190.3264425/PPO_VAE64_1675553190.3264425_1500000", env=env, device='cpu')
 model_name = f'{model.__class__.__name__}_VAE{LSIZE}_{time.time()}'
 model.learn(total_timesteps=500_000, callback=[HParamCallback(), TensorboardCallback(1)], reset_num_timesteps=False)

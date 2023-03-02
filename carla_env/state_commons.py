@@ -8,12 +8,11 @@ import gym
 from config import CONFIG
 
 from vae.utils.misc import LSIZE
-from wrappers import vector, get_displacement_vector
+from carla_env.wrappers import vector, get_displacement_vector
 
 torch.cuda.empty_cache()
 
 
-# vae_dir = f'/home/albertomate/Documentos/carla/PythonAPI/my-carla/vae/log_dir/vae_{LSIZE}'
 def load_vae(vae_dir, latent_size):
     model_dir = os.path.join(vae_dir, 'best.tar')
     model = VAE(latent_size)
@@ -71,11 +70,6 @@ def create_encode_state_fn(vae, measurements_to_include):
         return gym.spaces.Dict(observation_space)
 
     def encode_state(env):
-        # Encode image with VAE
-        # preprocess = transforms.Compose([
-        #     transforms.ToTensor(),
-        # ])
-        # image = preprocess(env.observation).unsqueeze(0)
         encoded_state = {}
         if vae:
             with torch.no_grad():
@@ -114,7 +108,7 @@ def create_encode_state_fn(vae, measurements_to_include):
 
         return encoded_state
 
-    def decode_state(z):
+    def decode_vae_state(z):
         with torch.no_grad():
             sample = torch.tensor(z)
             sample = vae.decode(sample).cpu()
@@ -122,4 +116,4 @@ def create_encode_state_fn(vae, measurements_to_include):
         return generated_image
     if not vae:
         decode_state = None
-    return create_observation_space(), encode_state, decode_state
+    return create_observation_space(), encode_state, decode_vae_state

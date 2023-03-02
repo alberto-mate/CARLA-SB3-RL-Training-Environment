@@ -4,10 +4,10 @@ import numpy as np
 # -- import route planning (copied and modified from CARLA 0.9.4's PythonAPI) --
 # ==============================================================================
 import carla
-from CarlaEnv.agents.navigation.local_planner import RoadOption
-from CarlaEnv.agents.navigation.global_route_planner import GlobalRoutePlanner
-from CarlaEnv.agents.navigation.global_route_planner_dao import GlobalRoutePlannerDAO
-from CarlaEnv.agents.tools.misc import vector
+from carla_env.navigation.local_planner import RoadOption
+from carla_env.navigation.global_route_planner import GlobalRoutePlanner
+from carla_env.navigation.global_route_planner_dao import GlobalRoutePlannerDAO
+from carla_env.tools.misc import vector
 
 def compute_route_waypoints(world_map, start_waypoint, end_waypoint, resolution=1.0, plan=None):
     """
