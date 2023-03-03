@@ -48,7 +48,10 @@ def create_encode_state_fn(vae, measurements_to_include):
                      "maneuver" in measurements_to_include,
                      "waypoints" in measurements_to_include,
                      "rgb_camera" in measurements_to_include,
-                     "seg_camera" in measurements_to_include]
+                     "seg_camera" in measurements_to_include,
+                     "end_wp_vector" in measurements_to_include,
+                     "end_wp_fixed" in measurements_to_include,
+                     "distance_goal" in measurements_to_include]
 
     def create_observation_space():
         observation_space = {}
@@ -67,6 +70,10 @@ def create_encode_state_fn(vae, measurements_to_include):
 
         if measure_flags[6]: observation_space['rgb_camera'] = gym.spaces.Box(low=0, high=255, shape=(CONFIG['obs_res'][1], CONFIG['obs_res'][0], 3), dtype=np.uint8)
         if measure_flags[7]: observation_space['seg_camera'] = gym.spaces.Box(low=0, high=255, shape=(CONFIG['obs_res'][1], CONFIG['obs_res'][0], 3), dtype=np.uint8)
+        if measure_flags[8]: observation_space['end_wp_vector'] = gym.spaces.Box(low=-50, high=50, shape=(1, 2), dtype=np.float32)
+        if measure_flags[9]: observation_space['end_wp_fixed'] = gym.spaces.Box(low=-50, high=50, shape=(1, 2), dtype=np.float32)
+        if measure_flags[10]: observation_space['distance_goal'] = gym.spaces.Box(low=0, high=1500, shape=(1, 1), dtype=np.float32)
+
         return gym.spaces.Dict(observation_space)
 
     def encode_state(env):
@@ -105,6 +112,18 @@ def create_encode_state_fn(vae, measurements_to_include):
 
         if measure_flags[6]: encoded_state['rgb_camera'] = env.observation
         if measure_flags[7]: encoded_state['seg_camera'] = env.observation
+        if measure_flags[8]:
+            vehicle_location = vector(env.vehicle.get_location())
+            theta = np.deg2rad(env.vehicle.get_transform().rotation.yaw)
+            end_wp_location = vector(env.end_wp.transform.location)
+            encoded_state['end_wp_vector'] = get_displacement_vector(vehicle_location, end_wp_location, theta)[:2]
+        if measure_flags[9]:
+            vehicle_location = vector(env.start_wp.transform.location)
+            theta = np.deg2rad(env.start_wp.transform.rotation.yaw)
+            end_wp_location = vector(env.end_wp.transform.location)
+            encoded_state['end_wp_fixed'] = get_displacement_vector(vehicle_location, end_wp_location, theta)[:2]
+        if measure_flags[10]:
+            encoded_state['distance_goal'] = len(env.route_waypoints) - env.current_waypoint_index
 
         return encoded_state
 
@@ -115,5 +134,5 @@ def create_encode_state_fn(vae, measurements_to_include):
             generated_image = sample.view(3, 80, 160).numpy().transpose((1, 2, 0)) * 255
         return generated_image
     if not vae:
-        decode_state = None
+        decode_vae_state = None
     return create_observation_space(), encode_state, decode_vae_state

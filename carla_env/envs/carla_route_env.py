@@ -338,6 +338,7 @@ class CarlaRouteEnv(gym.Env):
         transform = self.vehicle.get_transform()
 
         # Keep track of closest waypoint on the route
+        self.prev_waypoint_index = self.current_waypoint_index
         waypoint_index = self.current_waypoint_index
         for _ in range(len(self.route_waypoints)):
             # Check if we passed the next waypoint along the route
