@@ -2,8 +2,9 @@ import math
 import os
 import subprocess
 import argparse
-
+import carla
 import time
+from carla_env.wrappers import *
 
 
 class CarlaBirdView:

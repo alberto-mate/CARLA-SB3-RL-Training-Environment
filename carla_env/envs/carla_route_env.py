@@ -24,8 +24,7 @@ from collections import deque
 import itertools
 
 intersection_routes = itertools.cycle(
-    [(78, 76), (69, 48), (57, 48), (71, 70), (42, 64), (1, 38), (30, 56), (6, 17), (14, 55), (52, 62), (91, 96),
-     (45, 80), (35, 71), (65, 61)])
+    [(57, 81), (70, 11), (70, 12), (78, 68), (74, 41), (42, 73), (71, 62), (74, 40), (71, 77), (6, 12), (65, 52), (63, 80)])
 eval_routes = itertools.cycle([(3, 1), (0, 72)])
 
 discrete_actions = {
@@ -39,7 +38,7 @@ class CarlaRouteEnv(gym.Env):
     }
 
     def __init__(self, host="127.0.0.1", port=2000,
-                 viewer_res=(1120, 560), obs_res=(160, 80),
+                 viewer_res=(600, 560), obs_res=(160, 80),
                  reward_fn=None,
                  observation_space=None,
                  encode_state_fn=None, decode_vae_fn=None,
@@ -209,7 +208,7 @@ class CarlaRouteEnv(gym.Env):
 
         # Generate waypoints along the lap
         if not self.eval:
-            if self.episode_idx % 5 == 0 and self.num_routes_completed == -1:
+            if self.episode_idx % 2 == 0 and self.num_routes_completed == -1:
                 spawn_points_list = [self.world.map.get_spawn_points()[index] for index in next(intersection_routes)]
             else:
                 spawn_points_list = np.random.choice(self.world.map.get_spawn_points(), 2, replace=False)
