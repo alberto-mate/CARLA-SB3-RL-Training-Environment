@@ -1,10 +1,10 @@
 import os.path
 
-from stable_baselines3 import PPO, DQN
+from stable_baselines3 import PPO, DQN, SAC
 import pandas as pd
 import numpy as np
 
-from utils import VideoRecorder
+from utils import VideoRecorder, parse_wrapper_class
 from carla_env.state_commons import create_encode_state_fn, load_vae
 from carla_env.rewards import reward_functions
 
@@ -28,7 +28,8 @@ def run_eval(env, model, model_path=None, record_video=False):
     rendered_frame = env.render(mode="rgb_array")
 
     columns = ["model_id", "episode", "step", "throttle", "steer", "vehicle_location_x", "vehicle_location_y",
-               "reward", "distance", "speed", "center_dev", "angle_next_waypoint", "waypoint_x", "waypoint_y", "route_x", "route_y"]
+               "reward", "distance", "speed", "center_dev", "angle_next_waypoint", "waypoint_x", "waypoint_y", "route_x",
+               "route_y"]
     df = pd.DataFrame(columns=columns)
 
     # Init video recording
@@ -42,9 +43,10 @@ def run_eval(env, model, model_path=None, record_video=False):
     else:
         video_recorder = None
 
-    env.episode_idx = 0
+    episode_idx = 0
     # While non-terminal state
-    while env.episode_idx < 2:
+
+    while episode_idx < 4:
         env.extra_info.append("Eval")
         env.extra_info.append("")
 
@@ -84,6 +86,7 @@ def run_eval(env, model, model_path=None, record_video=False):
             video_recorder.add_frame(rendered_frame)
         if dones:
             state = env.reset()
+            episode_idx += 1
 
     # Release video
     if record_video:
@@ -94,9 +97,13 @@ def run_eval(env, model, model_path=None, record_video=False):
 
 
 if __name__ == "__main__":
-    model_path = "tensorboard/PPO_vae64_1677524104/model_1400000_steps.zip"
+    model_path = "tensorboard/SAC_1678659259/model_400000_steps.zip"
 
-    algorithm_dict = {"PPO": PPO, "DQN": DQN}
+    algorithm_dict = {"PPO": PPO, "DQN": DQN, "SAC": SAC}
+    if CONFIG["algorithm"] not in algorithm_dict:
+        raise ValueError("Invalid algorithm name")
+
+    AlgorithmRL = algorithm_dict[CONFIG["algorithm"]]
 
     if CONFIG["algorithm"] not in algorithm_dict:
         raise ValueError("Invalid algorithm name")
@@ -104,14 +111,18 @@ if __name__ == "__main__":
     vae = load_vae(f'./vae/log_dir/{CONFIG["vae_model"]}', LSIZE)
     observation_space, encode_state_fn, decode_vae_fn = create_encode_state_fn(vae, CONFIG["state"])
 
-    env = CarlaRouteEnv(obs_res=CONFIG["obs_res"],
+    env = CarlaRouteEnv(obs_res=CONFIG["obs_res"], viewer_res=(1120, 560),
                         reward_fn=reward_functions[CONFIG["reward_fn"]],
                         observation_space=observation_space,
                         encode_state_fn=encode_state_fn, decode_vae_fn=decode_vae_fn,
                         fps=15, action_smoothing=CONFIG["action_smoothing"],
                         action_space_type='continuous', activate_spectator=True, eval=True)
 
+    for wrapper_class_str in CONFIG["wrappers"]:
+        wrap_class, wrap_params = parse_wrapper_class(wrapper_class_str)
+        env = wrap_class(env, *wrap_params)
+
     # model = PPO('MultiInputPolicy', env, verbose=1, device='cpu', **ppo_hyperparam)
-    model = PPO.load(model_path, env=env, device='cpu')
+    model = AlgorithmRL.load(model_path, env=env, device='cpu')
 
     run_eval(env, model, model_path, record_video=True)

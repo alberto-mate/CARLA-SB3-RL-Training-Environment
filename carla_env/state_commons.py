@@ -55,7 +55,7 @@ def create_encode_state_fn(vae, measurements_to_include):
 
     def create_observation_space():
         observation_space = {}
-        if vae: observation_space['vae_latent'] = gym.spaces.Box(low=-4, high=4, shape=(1, LSIZE), dtype=np.float32)
+        if vae: observation_space['vae_latent'] = gym.spaces.Box(low=-4, high=4, shape=(LSIZE, ), dtype=np.float32)
         low, high = [], []
         if measure_flags[0]: low.append(-1), high.append(1)
         if measure_flags[1]: low.append(0), high.append(1)
@@ -82,7 +82,7 @@ def create_encode_state_fn(vae, measurements_to_include):
             with torch.no_grad():
                 frame = preprocess_frame(env.observation)
                 mu, logvar = vae.encode(frame)
-                vae_latent = vae.reparameterize(mu, logvar)[0].cpu().detach().numpy()[np.newaxis, :]
+                vae_latent = vae.reparameterize(mu, logvar)[0].cpu().detach().numpy().squeeze()
             encoded_state['vae_latent'] = vae_latent
         vehicle_measures = []
         if measure_flags[0]: vehicle_measures.append(env.vehicle.control.steer)

@@ -6,6 +6,7 @@ import json
 from stable_baselines3.common.callbacks import BaseCallback
 from stable_baselines3.common.logger import HParam
 
+from carla_env.wrappers import HistoryWrapperObsDict, FrameSkip
 
 
 def write_json(data, path):
@@ -124,3 +125,21 @@ def lr_schedule(initial_value: float, end_value: float, rate: float):
     lr_schedule.__str__ = lambda: f"lr_schedule({initial_value}, {end_value}, {rate})"
 
     return func
+
+
+def parse_wrapper_class(wrapper_class_str: str):
+    """
+    Parse a string to a wrapper class.
+
+    :param wrapper_class_str: (str) The string to parse.
+    :return: (type) The wrapper class and its parameters.
+    """
+    wrap_class, wrap_params = wrapper_class_str.split("_", 1)
+    wrap_params = wrap_params.split("_")
+    wrap_params = [int(param) if param.isnumeric() else param for param in wrap_params]
+
+    if wrap_class == "HistoryWrapperObsDict":
+        return HistoryWrapperObsDict, wrap_params
+    elif wrap_class == "FrameSkip":
+        return FrameSkip, wrap_params
+

@@ -1,6 +1,6 @@
 import os
 
-from stable_baselines3 import PPO, DQN
+from stable_baselines3 import PPO, DQN, SAC
 from stable_baselines3.common.callbacks import CheckpointCallback
 from stable_baselines3.common.logger import configure
 from carla_env.envs.carla_route_env import CarlaRouteEnv
@@ -10,19 +10,18 @@ from vae.utils.misc import LSIZE
 from carla_env.state_commons import create_encode_state_fn, load_vae
 
 from carla_env.rewards import reward_functions
-from utils import HParamCallback, TensorboardCallback, write_json
+from utils import HParamCallback, TensorboardCallback, write_json, parse_wrapper_class
 
 from config import CONFIG
 
 log_dir = 'tensorboard'
-#reload_model = "./tensorboard/PPO_vae64_1677524104/model_1400000_steps.zip"
+# reload_model = "./tensorboard/PPO_vae64_1677524104/model_1400000_steps.zip"
 reload_model = ""
-total_timesteps = 800_000
+total_timesteps = 1_000_000
 
 seed = CONFIG["seed"]
 
-algorithm_dict = {"PPO": PPO, "DQN": DQN}
-
+algorithm_dict = {"PPO": PPO, "DQN": DQN, "SAC": SAC}
 if CONFIG["algorithm"] not in algorithm_dict:
     raise ValueError("Invalid algorithm name")
 
@@ -38,6 +37,10 @@ env = CarlaRouteEnv(obs_res=CONFIG["obs_res"],
                     encode_state_fn=encode_state_fn, decode_vae_fn=decode_vae_fn,
                     fps=15, action_smoothing=CONFIG["action_smoothing"],
                     action_space_type='continuous', activate_spectator=False)
+for wrapper_class_str in CONFIG["wrappers"]:
+    wrap_class, wrap_params = parse_wrapper_class(wrapper_class_str)
+    env = wrap_class(env, *wrap_params)
+
 
 if reload_model == "":
     model = AlgorithmRL('MultiInputPolicy', env, verbose=1, seed=seed, tensorboard_log=log_dir, device='cpu',
