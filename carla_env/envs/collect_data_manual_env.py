@@ -1,13 +1,11 @@
 import os
 import subprocess
 import time
-import gym
 import pygame
 from PIL import Image
 from pygame.locals import *
-
 from carla_env.tools.hud import HUD
-
+from carla_env.wrappers import *
 
 class CarlaDataCollector:
     def __init__(self, host="127.0.0.1", port=2000,

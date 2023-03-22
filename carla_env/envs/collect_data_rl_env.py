@@ -11,7 +11,7 @@ from PIL import Image
 
 from carla_env.tools.hud import HUD
 from carla_env.navigation.planner import compute_route_waypoints
-
+from carla_env.wrappers import *
 try:
     sys.path.append(glob.glob('../carla/dist/carla-*%d.%d-%s.egg' % (
         sys.version_info.major,
@@ -53,10 +53,10 @@ class CarlaCollectDataRLEnv(gym.Env):
     }
 
     def __init__(self, host="127.0.0.1", port=2000,
-                 viewer_res=(1280, 720), obs_res=(1280, 720),
+                 viewer_res=(1280, 720), obs_res=(1280, 720), observation_space=None,
                  reward_fn=None, encode_state_fn=None, decode_vae_fn = None,
                  num_images_to_save=20000, output_dir="images",
-                 fps=15, action_smoothing=0.0, action_space_type="continious",
+                 fps=15, action_smoothing=0.0, action_space_type="continuous",
                  activate_spectator=True,
                  start_carla=True):
         """
@@ -141,12 +141,7 @@ class CarlaCollectDataRLEnv(gym.Env):
             self.action_space = gym.spaces.Discrete(4)
 
         # self.observation_space = gym.spaces.Box(low=0, high=255, shape=(out_height, out_width, 3), dtype=np.uint8)
-        self.observation_space = gym.spaces.Dict({
-            'vae_latent': gym.spaces.Box(low=-4, high=4, shape=(1, LSIZE), dtype=np.float32),
-            'vehicle_measures': gym.spaces.Box(low=np.array([-1, 0, 0]), high=np.array([1, 1, 120]), dtype=np.float32),
-            # steer, throttle, speed
-            'maneuver': gym.spaces.Discrete(4),
-        })
+        self.observation_space = observation_space
 
         self.fps = fps
         self.action_smoothing = action_smoothing
@@ -165,7 +160,7 @@ class CarlaCollectDataRLEnv(gym.Env):
         self.extra_info = []
         self.num_saved_observations = 12_000
         self.num_images_to_save = num_images_to_save
-
+        self.episode_idx = -2
         self.observation = {key: None for key in ["rgb", "segmentation"]}  # Last received observations
         self.observation_buffer = {key: None for key in ["rgb", "segmentation"]}
         self.viewer_image = self.viewer_image_buffer = None  # Last received image to show in the viewer
@@ -224,7 +219,9 @@ class CarlaCollectDataRLEnv(gym.Env):
         # Create new route
         self.num_routes_completed = -1
         self.new_route()
-
+        self.distance_from_center_history = []
+        self.success_state = False
+        self.episode_idx += 1
         # Set env vars
         self.terminal_state = False  # Set to True when we want to end episode
         self.closed = False  # Set to True when ESC is pressed
@@ -481,11 +478,11 @@ class CarlaCollectDataRLEnv(gym.Env):
 from stable_baselines3 import PPO
 import time
 from vae.utils.misc import LSIZE
-from CarlaEnv.state_commons import create_encode_state_fn, load_vae
+from carla_env.state_commons import create_encode_state_fn, load_vae
 
-from CarlaEnv.rewards import reward_fn
-from CarlaEnv.callbacks import HParamCallback, TensorboardCallback
-
+from carla_env.rewards import reward_functions
+from config import CONFIG
+from utils import HParamCallback, TensorboardCallback, write_json, parse_wrapper_class
 
 
 
@@ -497,17 +494,17 @@ ppo_hyperparam = dict(
     n_steps=1024
 )
 
-vae = load_vae(f'/home/albertomate/Documentos/carla/PythonAPI/my-carla/vae/log_dir/vae_{LSIZE}', LSIZE)
-encode_state_fn, decode_vae_fn = create_encode_state_fn(vae)
+
+observation_space, encode_state_fn, decode_vae_fn = create_encode_state_fn(None, ["steer", "throttle", "speed"])
 
 
 env = CarlaCollectDataRLEnv(obs_res=(160, 80), viewer_res=(160 * 7, 80 * 7),
-                    reward_fn=reward_fn, encode_state_fn=encode_state_fn, decode_vae_fn=decode_vae_fn,
+                    reward_fn=reward_functions['reward_fn5'], encode_state_fn=encode_state_fn, decode_vae_fn=decode_vae_fn, observation_space=observation_space,
                     start_carla=True, fps=10, action_smoothing=0.7,
-                    action_space_type='continuous', activate_spectator=False, output_dir='/home/albertomate/Documentos/carla/PythonAPI/my-carla/vae/images')
+                    action_space_type='continuous', activate_spectator=True, output_dir='/home/albertomate/Documentos/carla/PythonAPI/my-carla/vae/images2')
 
-
+model = PPO('MultiInputPolicy', env, device='cpu')
 # model = PPO('MultiInputPolicy', env, verbose=1, device='cpu', **ppo_hyperparam)
-model = PPO.load("/tensorboard/PPO_VAE64_1675553190.3264425/PPO_VAE64_1675553190.3264425_1500000", env=env, device='cpu')
 model_name = f'{model.__class__.__name__}_VAE{LSIZE}_{time.time()}'
-model.learn(total_timesteps=500_000, callback=[HParamCallback(), TensorboardCallback(1)], reset_num_timesteps=False)
+model.learn(total_timesteps=500_000, reset_num_timesteps=False)
+

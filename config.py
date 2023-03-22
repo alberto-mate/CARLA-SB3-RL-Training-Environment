@@ -33,21 +33,23 @@ _CONFIG_PPO = {
     "seed": 436,
 }
 
-_CONFIG_PPO_FINE_TUNING = {
-    "algorithm": "PPO",
+_CONFIG_SAC = {
+    "algorithm": "SAC",
     "algorithm_params": dict(
-        learning_rate=lr_schedule(1e-4, 1e-6, 2),
-        gae_lambda=0.95,
-        gamma=0.975,
-        clip_range=0.2,
-        ent_coef=0.01,
-        n_epochs=10,
-        n_steps=1024,
-        policy_kwargs=dict(activation_fn=th.nn.ReLU,
-                           net_arch=[dict(pi=[500, 300], vf=[500, 300])])
+        learning_rate=lr_schedule(5e-4, 1e-6, 2),
+        buffer_size=300000,
+        batch_size=256,
+        ent_coef='auto',
+        gamma=0.98,
+        tau=0.02,
+        train_freq=64,
+        gradient_steps=64,
+        learning_starts=10000,
+        use_sde=True,
+        policy_kwargs=dict(log_std_init=-3, net_arch=[400, 300]),
     ),
-    "state": ["steer", "throttle", "speed", "angle_next_waypoint", "maneuver"],
-    "vae_model": "vae_64",
+    "state": ["steer", "throttle", "speed", "maneuver"],
+    "vae_model": "vae_64_augmentation",
     "action_smoothing": 0.75,
     "reward_fn": "reward_fn5",
     "reward_params": dict(
@@ -56,22 +58,13 @@ _CONFIG_PPO_FINE_TUNING = {
         max_speed=35.0,  # km/h
         target_speed=25.0,  # kmh
         max_distance=3.0,  # Max distance from center before terminating
-        max_std_center_lane=0.4,
+        max_std_center_lane=0.5,
         max_angle_center_lane=90,
-        penalty_reward=-100,
+        penalty_reward=-10,
     ),
     "obs_res": (160, 80),
-    "seed": 3542,
+    "seed": 34435,
+    "wrappers": ['HistoryWrapperObsDict_5']
 }
-# n_actions = env.action_space.shape[-1]
-# action_noise = NormalActionNoise(mean=np.zeros(n_actions), sigma=0.5 * np.ones(n_actions))
-# model = DDPG('CnnPolicy', env, verbose=1, action_noise=action_noise, buffer_size=10000, tensorboard_log=log_dir, device='cpu')
-# dqn_hyperparam = dict(
-#     batch_size=100,
-#     buffer_size=20_000,
-#     target_update_interval=48,
-#     exploration_fraction=0.3,
-#     learning_starts=5_000,
-#     train_freq=4
-# )
-CONFIG = _CONFIG_PPO_FINE_TUNING
+
+CONFIG = _CONFIG_SAC

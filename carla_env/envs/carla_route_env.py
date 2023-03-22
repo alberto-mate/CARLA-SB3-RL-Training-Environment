@@ -67,6 +67,7 @@ class CarlaRouteEnv(gym.Env):
             - activate_lidar (bool): Whether to activate the lidar sensor. Default is False.
             - start_carla (bool): Whether to automatically start CARLA when True. Note that you need to set the environment variable ${CARLA_ROOT} to point to the CARLA root directory for this option to work.
             - eval (bool): Whether the environment is used for evaluation or training. Default is False.
+            - activate_render (bool): Whether to activate rendering. Default is True.
         """
 
         self.carla_process = None
@@ -83,8 +84,8 @@ class CarlaRouteEnv(gym.Env):
             launch_command += [f'-carla-world-port={port}']
             print("Running command:")
             print(" ".join(launch_command))
-            self.carla_process = subprocess.Popen(launch_command, stdout=subprocess.DEVNULL)
-            print("Waiting for CARLA to initialize")
+            self.carla_process = subprocess.Popen(launch_command, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+            print("Waiting for CARLA to initialize\n")
 
             # ./CarlaUE4.sh -quality_level=Low -benchmark -fps=15 -RenderOffScreen
             time.sleep(5)

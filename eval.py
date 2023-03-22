@@ -15,6 +15,17 @@ from carla_env.wrappers import vector, get_displacement_vector
 from carla_env.envs.carla_route_env import CarlaRouteEnv
 from eval_plots import plot_eval
 
+import argparse
+
+parser = argparse.ArgumentParser(description="Eval a CARLA agent")
+parser.add_argument("--host", default="localhost", type=str, help="IP of the host server (default: 127.0.0.1)")
+parser.add_argument("--port", default=2000, type=int, help="TCP port to listen to (default: 2000)")
+parser.add_argument("--model", type=str, default="", required=True, help="Path to a model evaluate")
+parser.add_argument("-no_render", action="store_false", help="If True, render the environment")
+parser.add_argument("--fps", type=int, default=15, help="FPS to render the environment")
+parser.add_argument("--no_record_video", action="store_false", help="If True, record video of the evaluation")
+
+args = vars(parser.parse_args())
 
 def run_eval(env, model, model_path=None, record_video=False):
     model_name = os.path.basename(model_path)
@@ -47,12 +58,12 @@ def run_eval(env, model, model_path=None, record_video=False):
     # While non-terminal state
 
     while episode_idx < 4:
-        env.extra_info.append("Eval")
-        env.extra_info.append("")
+        env.extra_info.append("Evaluation")
 
         action, _states = model.predict(state, deterministic=True)
         state, reward, dones, info = env.step(action)
 
+        # Save route at the beginning of the episode
         if env.step_count == 2:
             initial_heading = np.deg2rad(env.vehicle.get_transform().rotation.yaw)
             initial_vehicle_location = vector(env.vehicle.get_location())
@@ -97,7 +108,7 @@ def run_eval(env, model, model_path=None, record_video=False):
 
 
 if __name__ == "__main__":
-    model_path = "tensorboard/SAC_1678659259/model_400000_steps.zip"
+    model_path = args["model"]
 
     algorithm_dict = {"PPO": PPO, "DQN": DQN, "SAC": SAC}
     if CONFIG["algorithm"] not in algorithm_dict:
@@ -111,18 +122,17 @@ if __name__ == "__main__":
     vae = load_vae(f'./vae/log_dir/{CONFIG["vae_model"]}', LSIZE)
     observation_space, encode_state_fn, decode_vae_fn = create_encode_state_fn(vae, CONFIG["state"])
 
-    env = CarlaRouteEnv(obs_res=CONFIG["obs_res"], viewer_res=(1120, 560),
+    env = CarlaRouteEnv(obs_res=CONFIG["obs_res"], viewer_res=(1120, 560), host=args["host"], port=args["port"],
                         reward_fn=reward_functions[CONFIG["reward_fn"]],
                         observation_space=observation_space,
                         encode_state_fn=encode_state_fn, decode_vae_fn=decode_vae_fn,
-                        fps=15, action_smoothing=CONFIG["action_smoothing"],
-                        action_space_type='continuous', activate_spectator=True, eval=True)
+                        fps=args["fps"], action_smoothing=CONFIG["action_smoothing"],
+                        action_space_type='continuous', activate_spectator=True, eval=True, activate_render=args["no_render"])
 
     for wrapper_class_str in CONFIG["wrappers"]:
         wrap_class, wrap_params = parse_wrapper_class(wrapper_class_str)
         env = wrap_class(env, *wrap_params)
 
-    # model = PPO('MultiInputPolicy', env, verbose=1, device='cpu', **ppo_hyperparam)
-    model = AlgorithmRL.load(model_path, env=env, device='cpu')
+    model = AlgorithmRL.load(model_path, env=env, device='cuda')
 
     run_eval(env, model, model_path, record_video=True)

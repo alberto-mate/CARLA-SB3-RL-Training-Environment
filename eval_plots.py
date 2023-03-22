@@ -3,6 +3,13 @@ import os
 import pandas as pd
 import matplotlib.pyplot as plt
 
+import argparse
+
+parser = argparse.ArgumentParser(description="Compare evaluation results from different models")
+parser.add_argument("--models", nargs='+', type=str, default="", help="Path to a model evaluate")
+
+
+args = vars(parser.parse_args())
 
 def plot_eval(eval_csv_paths, output_name=None):
     episode_numbers = pd.read_csv(eval_csv_paths[0])['episode'].unique()
@@ -98,7 +105,8 @@ def plot_eval(eval_csv_paths, output_name=None):
 
 
 if __name__ == '__main__':
-    compare_models = ["PPO_vae64_1677524104-1400000", "PPO_vae64_1677415201-300000"]
+
+    compare_models = args['models']
     eval_csv_paths = []
     for model in compare_models:
         model_id, steps = model.split("-")
