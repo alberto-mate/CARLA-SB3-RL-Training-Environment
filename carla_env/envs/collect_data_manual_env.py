@@ -6,7 +6,7 @@ import pygame
 from PIL import Image
 from pygame.locals import *
 
-from CarlaEnv.tools.hud import HUD
+from carla_env.tools.hud import HUD
 
 
 class CarlaDataCollector:

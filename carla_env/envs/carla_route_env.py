@@ -46,7 +46,8 @@ class CarlaRouteEnv(gym.Env):
                  activate_spectator=True,
                  activate_lidar=False,
                  start_carla=True,
-                 eval=False):
+                 eval=False,
+                 activate_render=True):
         """
         A gym-like environment for interacting with a running CARLA environment and controlling a Lincoln MKZ2017 vehicle.
 
@@ -88,16 +89,13 @@ class CarlaRouteEnv(gym.Env):
             # ./CarlaUE4.sh -quality_level=Low -benchmark -fps=15 -RenderOffScreen
             time.sleep(5)
 
-        # Initialize pygame for visualization
-        pygame.init()
-        pygame.font.init()
         width, height = viewer_res
         if obs_res is None:
             out_width, out_height = width, height
         else:
             out_width, out_height = obs_res
-        self.display = pygame.display.set_mode((width, height), pygame.HWSURFACE | pygame.DOUBLEBUF)
-        self.clock = pygame.time.Clock()
+        self.activate_render = activate_render
+
 
         # Setup gym environment
         self.action_space_type = action_space_type
@@ -140,10 +138,15 @@ class CarlaRouteEnv(gym.Env):
                                    on_collision_fn=lambda e: self._on_collision(e),
                                    on_invasion_fn=lambda e: self._on_invasion(e))
 
-            # Create hud
-            self.hud = HUD(width, height)
-            self.hud.set_vehicle(self.vehicle)
-            self.world.on_tick(self.hud.on_world_tick)
+            # Create hud and initialize pygame for visualization
+            if self.activate_render:
+                pygame.init()
+                pygame.font.init()
+                self.display = pygame.display.set_mode((width, height), pygame.HWSURFACE | pygame.DOUBLEBUF)
+                self.clock = pygame.time.Clock()
+                self.hud = HUD(width, height)
+                self.hud.set_vehicle(self.vehicle)
+                self.world.on_tick(self.hud.on_world_tick)
 
             seg_settings = {}
             if "seg_camera" in self.observation_space.keys():
@@ -240,6 +243,17 @@ class CarlaRouteEnv(gym.Env):
         self.closed = True
 
     def render(self, mode="human"):
+        if mode == "rgb_array_no_hud":
+            return self.viewer_image
+        elif mode == "rgb_array":
+            # Turn display surface into rgb_array
+            return np.array(pygame.surfarray.array3d(self.display), dtype=np.uint8).transpose([1, 0, 2])
+        elif mode == "state_pixels":
+            return self.observation
+
+        # Tick render clock
+        self.clock.tick()
+        self.hud.tick(self.world, self.clock)
 
         # Get maneuver name
         if self.current_road_maneuver == RoadOption.LANEFOLLOW:
@@ -291,13 +305,7 @@ class CarlaRouteEnv(gym.Env):
         # Render to screen
         pygame.display.flip()
 
-        if mode == "rgb_array_no_hud":
-            return self.viewer_image
-        elif mode == "rgb_array":
-            # Turn display surface into rgb_array
-            return np.array(pygame.surfarray.array3d(self.display), dtype=np.uint8).transpose([1, 0, 2])
-        elif mode == "state_pixels":
-            return self.observation
+
 
     def step(self, action):
         if self.closed:
@@ -322,8 +330,6 @@ class CarlaRouteEnv(gym.Env):
                                                           self.action_smoothing)
         # Tick game
         self.world.tick()
-        self.clock.tick()
-        self.hud.tick(self.world, self.clock)
 
         # Get most recent observation and viewer image
         self.observation = self._get_observation()
@@ -397,11 +403,13 @@ class CarlaRouteEnv(gym.Env):
         # self.world.debug.draw_point(self.current_waypoint.transform.location + carla.Location(z=1.25), size=0.1,color=carla.Color(0, 255, 255), life_time=2.0, persistent_lines=False)
 
         # Check for ESC press
-        pygame.event.pump()
-        if pygame.key.get_pressed()[K_ESCAPE]:
-            self.close()
-            self.terminal_state = True
-        self.render()
+        if self.activate_render:
+            pygame.event.pump()
+            if pygame.key.get_pressed()[K_ESCAPE]:
+                self.close()
+                self.terminal_state = True
+            self.render()
+
         info = {
             "closed": self.closed,
             'total_reward': self.total_reward,
@@ -439,6 +447,9 @@ class CarlaRouteEnv(gym.Env):
             life_time, False)
 
     def _draw_path(self, camera, image):
+        """
+            Draw a connected path from start of route to end using homography.
+        """
         vehicle_vector = vector(self.vehicle.get_transform().location)
         # Get the world to camera matrix
         world_2_camera = np.array(camera.get_transform().get_inverse_matrix())
@@ -484,14 +495,16 @@ class CarlaRouteEnv(gym.Env):
         return image
 
     def _on_collision(self, event):
-        self.hud.notification("Collision with {}".format(get_actor_display_name(event.other_actor)))
         if get_actor_display_name(event.other_actor) != "Road":
             self.terminal_state = True
+        if self.activate_render:
+            self.hud.notification("Collision with {}".format(get_actor_display_name(event.other_actor)))
 
     def _on_invasion(self, event):
         lane_types = set(x.type for x in event.crossed_lane_markings)
         text = ["%r" % str(x).split()[-1] for x in lane_types]
-        self.hud.notification("Crossed line %s" % " and ".join(text))
+        if self.activate_render:
+            self.hud.notification("Crossed line %s" % " and ".join(text))
 
     def _set_observation_image(self, image):
         self.observation_buffer = image

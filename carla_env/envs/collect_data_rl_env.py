@@ -9,8 +9,8 @@ from gym.utils import seeding
 from pygame.locals import *
 from PIL import Image
 
-from CarlaEnv.tools.hud import HUD
-from CarlaEnv.navigation.planner import compute_route_waypoints
+from carla_env.tools.hud import HUD
+from carla_env.navigation.planner import compute_route_waypoints
 
 try:
     sys.path.append(glob.glob('../carla/dist/carla-*%d.%d-%s.egg' % (
