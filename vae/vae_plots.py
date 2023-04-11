@@ -4,13 +4,14 @@ import numpy as np
 import matplotlib.pyplot as plt
 import torch
 from models import VAE
-from utils.misc import LSIZE
+from vae.utils.misc import LSIZE
 
 source_shape = (80, 160, 3)
 target_shape = (80, 160, 3)
 
 z_range = 10
-vae_dir = f'/home/albertomate/Documentos/carla/PythonAPI/my-carla/vae/log_dir/vae_{LSIZE}'
+name = 'vae_64_v1'
+vae_dir = f'/home/albertomate/Documentos/carla/PythonAPI/my-carla/vae/log_dir/{name}'
 class VAEVisualizer:
     def __init__(self, model, device, image_path):
         self.model = model
@@ -59,7 +60,7 @@ class VAEVisualizer:
                 ax[i, k].set_yticks([h / 2])
                 ax[i, k].set_yticklabels([z_index])
         fig.text(0.04, 0.5, "z index", va="center", rotation="vertical")
-        fig.suptitle(f'VAE {LSIZE}')
+        fig.suptitle(f'{name} - latent space exploration')
         plt.savefig(os.path.join(vae_dir, 'plot_vae.png'), dpi=700)
         print("ploted")
 
@@ -88,7 +89,7 @@ if __name__ == '__main__':
     model.eval()
 
     # Initialize the VAE visualizer
-    image_path = '/home/albertomate/Documentos/carla/PythonAPI/my-carla/vae/images/rgb/600.png'  # path to the sample image
+    image_path = '/home/albertomate/Documentos/carla/PythonAPI/my-carla/vae/images/rgb/520.png'  # path to the sample image
 
 
 
