@@ -4,22 +4,22 @@ import numpy as np
 import matplotlib.pyplot as plt
 import torch
 from models import VAE
-from utils.misc import LSIZE
+from vae.utils.misc import LSIZE
 
 source_shape = (80, 160, 3)
 target_shape = (80, 160, 3)
 
 z_range = 10
-vae_dir = f'/home/albertomate/Documentos/carla/PythonAPI/my-carla/vae/log_dir/vae_{LSIZE}'
+name = 'vae_64_augmentation'
+vae_dir = f'/home/albertomate/Documentos/carla/PythonAPI/my-carla/vae/log_dir/{name}'
 class VAEVisualizer:
-    def __init__(self, model, device, image_path):
+    def __init__(self, model, device):
         self.model = model
         self.device = device
-        self.image_path = image_path
 
-    def visualize(self):
+    def visualize(self, image_path):
         # Load the image
-        image = plt.imread(self.image_path)
+        image = plt.imread(image_path)
         # Define the transformations to apply to the images
         # Preprocess the image
         preprocess = transforms.Compose([
@@ -48,8 +48,8 @@ class VAEVisualizer:
                     z = seeded_z.copy()
                     z[z_index] += zi
                     with torch.no_grad():
-                        sample = torch.tensor(z).to(device)
-                        sample = model.decode(sample).cpu()
+                        sample = torch.tensor(z).to(self.device)
+                        sample = self.model.decode(sample).cpu()
                         generated_image = sample.view(3, 80, 160).numpy().transpose((1, 2, 0))
 
                     compound_image[:, j * w:(j + 1) * w, :] = generated_image
@@ -59,8 +59,51 @@ class VAEVisualizer:
                 ax[i, k].set_yticks([h / 2])
                 ax[i, k].set_yticklabels([z_index])
         fig.text(0.04, 0.5, "z index", va="center", rotation="vertical")
-        fig.suptitle(f'VAE {LSIZE}')
+        fig.suptitle(f'{name} - latent space exploration')
         plt.savefig(os.path.join(vae_dir, 'plot_vae.png'), dpi=700)
+        print("ploted")
+
+    def compare_gt_and_pred(self, image_path_list):
+        fig, ax = plt.subplots(len(image_path_list), 3)
+        for i, image_path in enumerate(image_path_list):
+            # Load the image
+            rgb_image = plt.imread(image_path)
+            seg_image = plt.imread(image_path.replace('rgb', 'segmentation'))
+
+            # Define the transformations to apply to the images
+            # Preprocess the image
+            preprocess = transforms.Compose([
+                transforms.ToTensor(),
+            ])
+            rgb_image = preprocess(rgb_image).unsqueeze(0).to(self.device)
+            seg_image = preprocess(seg_image).unsqueeze(0).to(self.device)
+
+            # Obtain the latent representation
+            with torch.no_grad():
+                mu, logvar = self.model.encode(rgb_image)
+                seeded_z = self.model.reparameterize(mu, logvar)[0].cpu().detach().numpy()
+
+            with torch.no_grad():
+                sample = torch.tensor(seeded_z).to(self.device)
+                sample = self.model.decode(sample).cpu()
+                generated_image = sample.view(3, 80, 160).numpy().transpose((1, 2, 0))
+
+            ax[i, 0].imshow(rgb_image[0].cpu().numpy().transpose((1, 2, 0)), vmin=0, vmax=1)
+            ax[i, 1].imshow(generated_image, vmin=0, vmax=1)
+            ax[i, 2].imshow(seg_image[0].cpu().numpy().transpose((1, 2, 0)), vmin=0, vmax=1)
+
+            ax[i, 0].set_axis_off()
+            ax[i, 1].set_axis_off()
+            ax[i, 2].set_axis_off()
+
+        pad = 5  # in points
+        for ax, col in zip(ax[0], ['rgb', 'pred', 'gt']):
+            ax.annotate(col, xy=(0.5, 1), xytext=(0, pad),
+                        xycoords='axes fraction', textcoords='offset points',
+                        size='small', ha='center', va='baseline')
+        fig.suptitle(f'{name} - compare gt and pred')
+        plt.subplots_adjust(wspace=0.01, hspace=0.1)
+        plt.savefig(os.path.join(vae_dir, 'compare_gt_and_pred_plot.png'), dpi=700)
         print("ploted")
 
 
@@ -88,9 +131,10 @@ if __name__ == '__main__':
     model.eval()
 
     # Initialize the VAE visualizer
-    image_path = '/home/albertomate/Documentos/carla/PythonAPI/my-carla/vae/images/rgb/600.png'  # path to the sample image
+    image_path = '/home/albertomate/Documentos/carla/PythonAPI/my-carla/vae/images/rgb/520.png'  # path to the sample image
 
-
-
-    visualizer = VAEVisualizer(model, device, image_path)
-    visualizer.visualize()
+    images_numbers = [520, 140, 254, 984]
+    image_path_list = [os.path.join('/home/albertomate/Documentos/carla/PythonAPI/my-carla/vae/images/rgb/', f'{i}.png') for i in images_numbers]
+    visualizer = VAEVisualizer(model, device)
+    visualizer.visualize(image_path)
+    visualizer.compare_gt_and_pred(image_path_list)
