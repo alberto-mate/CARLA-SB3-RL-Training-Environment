@@ -21,7 +21,7 @@ parser.add_argument("--config", type=str, default="1", help="Config to use (defa
 args = vars(parser.parse_args())
 config.set_config(args["config"])
 
-from stable_baselines3 import PPO, DQN, SAC
+from stable_baselines3 import PPO, DDPG, SAC
 from stable_baselines3.common.callbacks import CheckpointCallback
 from stable_baselines3.common.logger import configure
 from carla_env.envs.carla_route_env import CarlaRouteEnv
@@ -39,7 +39,7 @@ total_timesteps = args["total_timesteps"]
 
 seed = CONFIG["seed"]
 
-algorithm_dict = {"PPO": PPO, "DQN": DQN, "SAC": SAC}
+algorithm_dict = {"PPO": PPO, "DDPG": DDPG, "SAC": SAC}
 if CONFIG["algorithm"] not in algorithm_dict:
     raise ValueError("Invalid algorithm name")
 

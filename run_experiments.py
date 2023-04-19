@@ -3,8 +3,8 @@ import time
 import os
 
 experiments = [
-    ("1", 1_000),
-    ("2", 1_000),
+    ("1", 200_000),
+    ("2", 200_000),
     ("3", 200_000),
     ("4", 500_000),
     ("5", 500_000),
@@ -12,8 +12,8 @@ experiments = [
 ]
 
 root_dir = 'tensorboard'
-os.environ["CARLA_ROOT"] = "/home/albertomate/Documentos/carla"
-
+os.environ["CARLA_ROOT"] = "/home/amate/CARLA_0.9.13"
+os.environ["SDL_VIDEODRIVER"] = "dummy"
 
 def kill_carla_server():
     # Run killall -9 CarlaUE4-Linux-Shipping
@@ -55,7 +55,6 @@ for config, steps in experiments:
     args_eval = [
         "--config", config,
         "--model", last_model_path,
-        "--no_render"
     ]
 
     subprocess.run(["python", "eval.py"] + args_eval)

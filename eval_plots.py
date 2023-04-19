@@ -5,11 +5,7 @@ import matplotlib.pyplot as plt
 
 import argparse
 
-parser = argparse.ArgumentParser(description="Compare evaluation results from different models")
-parser.add_argument("--models", nargs='+', type=str, default="", help="Path to a model evaluate")
 
-
-args = vars(parser.parse_args())
 
 def plot_eval(eval_csv_paths, output_name=None):
     episode_numbers = pd.read_csv(eval_csv_paths[0])['episode'].unique()
@@ -104,7 +100,10 @@ def plot_eval(eval_csv_paths, output_name=None):
     plt.savefig(eval_plot_path)
 
 
-if __name__ == '__main__':
+def main():
+    parser = argparse.ArgumentParser(description="Compare evaluation results from different models")
+    parser.add_argument("--models", nargs='+', type=str, default="", help="Path to a model evaluate")
+    args = vars(parser.parse_args())
 
     compare_models = args['models']
     eval_csv_paths = []
@@ -112,3 +111,9 @@ if __name__ == '__main__':
         model_id, steps = model.split("-")
         eval_csv_paths.append(os.path.join("tensorboard", model_id, "eval", f"model_{steps}_steps_eval.csv"))
     plot_eval(eval_csv_paths, output_name="+".join(compare_models))
+
+
+
+if __name__ == '__main__':
+    main()
+  

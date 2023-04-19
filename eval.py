@@ -60,12 +60,15 @@ def run_eval(env, model, model_path=None, record_video=False):
 
     episode_idx = 0
     # While non-terminal state
-
+    print("Episode ", episode_idx)
     while episode_idx < 4:
+        print(1)
         env.extra_info.append("Evaluation")
 
         action, _states = model.predict(state, deterministic=True)
         state, reward, dones, info = env.step(action)
+        if env.step_count >= 150 and env.current_waypoint_index == 0:
+            dones = True
 
         # Save route at the beginning of the episode
         if env.step_count == 2:
@@ -102,6 +105,7 @@ def run_eval(env, model, model_path=None, record_video=False):
         if dones:
             state = env.reset()
             episode_idx += 1
+            print("Episode ", episode_idx)
 
     # Release video
     if record_video:
