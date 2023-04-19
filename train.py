@@ -4,35 +4,36 @@ import os
 warnings.filterwarnings("ignore")
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
-from stable_baselines3 import PPO, DQN, SAC
-from stable_baselines3.common.callbacks import CheckpointCallback
-from stable_baselines3.common.logger import configure
-from carla_env.envs.carla_route_env import CarlaRouteEnv
-import time
-
-from vae.utils.misc import LSIZE
-from carla_env.state_commons import create_encode_state_fn, load_vae
-
-from carla_env.rewards import reward_functions
-from utils import HParamCallback, TensorboardCallback, write_json, parse_wrapper_class
-
-from config import CONFIG
-
 import argparse
+import config
+import time
 
 parser = argparse.ArgumentParser(description="Trains a CARLA agent")
 parser.add_argument("--host", default="localhost", type=str, help="IP of the host server (default: 127.0.0.1)")
 parser.add_argument("--port", default=2000, type=int, help="TCP port to listen to (default: 2000)")
 parser.add_argument("--total_timesteps", type=int, default=1_000_000, help="Total timestep to train for")
 parser.add_argument("--reload_model", type=str, default="", help="Path to a model to reload")
-parser.add_argument("-no_render", action="store_false", help="If True, render the environment")
+parser.add_argument("--no_render", action="store_false", help="If True, render the environment")
 parser.add_argument("--fps", type=int, default=15, help="FPS to render the environment")
 parser.add_argument("--num_checkpoints", type=int, default=10, help="Checkpoint frequency")
+parser.add_argument("--config", type=str, default="1", help="Config to use (default: 1)")
 
 args = vars(parser.parse_args())
+config.set_config(args["config"])
+
+from stable_baselines3 import PPO, DQN, SAC
+from stable_baselines3.common.callbacks import CheckpointCallback
+from stable_baselines3.common.logger import configure
+from carla_env.envs.carla_route_env import CarlaRouteEnv
+
+from vae.utils.misc import LSIZE
+from carla_env.state_commons import create_encode_state_fn, load_vae
+from carla_env.rewards import reward_functions
+from utils import HParamCallback, TensorboardCallback, write_json, parse_wrapper_class
+
+from config import CONFIG
 
 log_dir = 'tensorboard'
-
 reload_model = args["reload_model"]
 total_timesteps = args["total_timesteps"]
 
@@ -62,7 +63,7 @@ for wrapper_class_str in CONFIG["wrappers"]:
 if reload_model == "":
     model = AlgorithmRL('MultiInputPolicy', env, verbose=1, seed=seed, tensorboard_log=log_dir, device='cuda',
                         **CONFIG["algorithm_params"])
-    model_suffix = f"{int(time.time())}"
+    model_suffix = f"{int(time.time())}_id{args['config']}"
 else:
     model = AlgorithmRL.load(reload_model, env=env, device='cuda', seed=seed, **CONFIG["algorithm_params"])
     model_suffix = f"{reload_model.split('/')[-2].split('_')[-1]}_finetuning"

@@ -1,31 +1,35 @@
 import os.path
-
-from stable_baselines3 import PPO, DQN, SAC
+import argparse
 import pandas as pd
 import numpy as np
+import config
+
+parser = argparse.ArgumentParser(description="Eval a CARLA agent")
+parser.add_argument("--host", default="localhost", type=str, help="IP of the host server (default: 127.0.0.1)")
+parser.add_argument("--port", default=2000, type=int, help="TCP port to listen to (default: 2000)")
+parser.add_argument("--model", type=str, default="", required=True, help="Path to a model evaluate")
+parser.add_argument("--no_render", action="store_false", help="If True, render the environment")
+parser.add_argument("--fps", type=int, default=15, help="FPS to render the environment")
+parser.add_argument("--no_record_video", action="store_false", help="If True, record video of the evaluation")
+parser.add_argument("--config", type=str, default="1", help="Config to use (default: 1)")
+
+args = vars(parser.parse_args())
+config.set_config(args["config"])
+
+from stable_baselines3 import PPO, DQN, SAC
+
 
 from utils import VideoRecorder, parse_wrapper_class
 from carla_env.state_commons import create_encode_state_fn, load_vae
 from carla_env.rewards import reward_functions
-
-from config import CONFIG
 
 from vae.utils.misc import LSIZE
 from carla_env.wrappers import vector, get_displacement_vector
 from carla_env.envs.carla_route_env import CarlaRouteEnv
 from eval_plots import plot_eval
 
-import argparse
+from config import CONFIG
 
-parser = argparse.ArgumentParser(description="Eval a CARLA agent")
-parser.add_argument("--host", default="localhost", type=str, help="IP of the host server (default: 127.0.0.1)")
-parser.add_argument("--port", default=2000, type=int, help="TCP port to listen to (default: 2000)")
-parser.add_argument("--model", type=str, default="", required=True, help="Path to a model evaluate")
-parser.add_argument("-no_render", action="store_false", help="If True, render the environment")
-parser.add_argument("--fps", type=int, default=15, help="FPS to render the environment")
-parser.add_argument("--no_record_video", action="store_false", help="If True, record video of the evaluation")
-
-args = vars(parser.parse_args())
 
 def run_eval(env, model, model_path=None, record_video=False):
     model_name = os.path.basename(model_path)

@@ -24,7 +24,7 @@ def load_vae(vae_dir, latent_size):
             state['precision']))
         model.load_state_dict(state['state_dict'])
         return model
-    raise "Error - VAE model does not exist"
+    raise Exception("Error - VAE model does not exist")
 
 
 def preprocess_frame(frame):
