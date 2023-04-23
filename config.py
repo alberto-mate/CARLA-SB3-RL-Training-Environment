@@ -1,5 +1,6 @@
 import torch as th
-
+from stable_baselines3.common.noise import NormalActionNoise
+import numpy as np
 from utils import lr_schedule
 
 algorithm_params = {
@@ -31,10 +32,8 @@ algorithm_params = {
         gamma=0.98,
         buffer_size=200000,
         learning_starts=10000,
-        noise_type='normal',
-        noise_std=0.1,
+        action_noise=NormalActionNoise(mean=np.zeros(2), sigma=0.5 * np.ones(2)),
         gradient_steps=-1,
-        train_freq=[1, "episode"],
         learning_rate=lr_schedule(5e-4, 1e-6, 2),
         policy_kwargs=dict(net_arch=[400, 300]),
     )

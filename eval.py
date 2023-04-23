@@ -16,8 +16,7 @@ parser.add_argument("--config", type=str, default="1", help="Config to use (defa
 args = vars(parser.parse_args())
 config.set_config(args["config"])
 
-from stable_baselines3 import PPO, DQN, SAC
-
+from stable_baselines3 import PPO, DDPG, SAC
 
 from utils import VideoRecorder, parse_wrapper_class
 from carla_env.state_commons import create_encode_state_fn, load_vae
@@ -26,7 +25,7 @@ from carla_env.rewards import reward_functions
 from vae.utils.misc import LSIZE
 from carla_env.wrappers import vector, get_displacement_vector
 from carla_env.envs.carla_route_env import CarlaRouteEnv
-from eval_plots import plot_eval
+from eval_plots import plot_eval, summary_eval
 
 from config import CONFIG
 
@@ -62,7 +61,6 @@ def run_eval(env, model, model_path=None, record_video=False):
     # While non-terminal state
     print("Episode ", episode_idx)
     while episode_idx < 4:
-        print(1)
         env.extra_info.append("Evaluation")
 
         action, _states = model.predict(state, deterministic=True)
@@ -113,12 +111,13 @@ def run_eval(env, model, model_path=None, record_video=False):
 
     df.to_csv(csv_path, index=False)
     plot_eval([csv_path])
+    summary_eval(csv_path)
 
 
 if __name__ == "__main__":
     model_path = args["model"]
 
-    algorithm_dict = {"PPO": PPO, "DQN": DQN, "SAC": SAC}
+    algorithm_dict = {"PPO": PPO, "DDPG": DDPG, "SAC": SAC}
     if CONFIG["algorithm"] not in algorithm_dict:
         raise ValueError("Invalid algorithm name")
 
@@ -143,4 +142,4 @@ if __name__ == "__main__":
 
     model = AlgorithmRL.load(model_path, env=env, device='cuda')
 
-    run_eval(env, model, model_path, record_video=True)
+    run_eval(env, model, model_path, record_video=args['no_record_video'])

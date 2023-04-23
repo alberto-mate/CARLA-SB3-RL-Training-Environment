@@ -34,6 +34,7 @@ from utils import HParamCallback, TensorboardCallback, write_json, parse_wrapper
 from config import CONFIG
 
 log_dir = 'tensorboard'
+os.makedirs(log_dir, exist_ok=True)
 reload_model = args["reload_model"]
 total_timesteps = args["total_timesteps"]
 

@@ -3,17 +3,13 @@ import time
 import os
 
 experiments = [
-    ("1", 200_000),
-    ("2", 200_000),
-    ("3", 200_000),
-    ("4", 500_000),
-    ("5", 500_000),
-    ("6", 500_000),
+    ("3", 2_000),
 ]
 
 root_dir = 'tensorboard'
-os.environ["CARLA_ROOT"] = "/home/amate/CARLA_0.9.13"
+os.environ["CARLA_ROOT"] = "/home/albertomate/Documentos/carla"
 os.environ["SDL_VIDEODRIVER"] = "dummy"
+
 
 def kill_carla_server():
     # Run killall -9 CarlaUE4-Linux-Shipping
@@ -28,33 +24,47 @@ def get_last_model_path():
     dirs = os.listdir(root_dir)
     temp_path = os.path.join(root_dir, sorted(dirs)[-1])
     dirs = os.listdir(temp_path)
+
     # Check all the .zip files and get the last one
-    zip_files = [f for f in dirs if f.endswith('.zip')]
-    return os.path.join(temp_path, sorted(zip_files)[-1])
+    max_steps = 0
+    latest_model = ''
+    for file in dirs:
+        if file.endswith('.zip') and file.startswith('model_'):
+            steps = int(file.split('_')[1].split('.')[0])
+            if steps > max_steps:
+                max_steps = steps
+                latest_model = file
+
+    return os.path.join(temp_path, latest_model)
 
 
-for config, steps in experiments:
-    # Check if that config exists already
-    for folder in os.listdir(root_dir):
-        if "id" in folder and folder.split("id")[1] == config:
-            continue
+def main():
+    for config, steps in experiments:
+        # Check if that config exists already
+        for folder in os.listdir(root_dir):
+            if "id" in folder and folder.split("id")[1] == config:
+                continue
 
-    # Run training
-    print(f"Running experiment {config} with {steps} steps\n")
-    args_train = [
-        "--config", config,
-        "--total_timesteps", str(steps),
-        "--no_render"
-    ]
-    subprocess.run(["python", "train.py"] + args_train)
-    kill_carla_server()
-    # Run evaluation
-    print(f"Evaluating experiment {config} with {steps} steps\n")
-    print(f"model path: {get_last_model_path()}")
-    last_model_path = get_last_model_path()
-    args_eval = [
-        "--config", config,
-        "--model", last_model_path,
-    ]
+        # Run training
+        print(f"Running experiment {config} with {steps} steps\n")
+        args_train = [
+            "--config", config,
+            "--total_timesteps", str(steps),
+            "--no_render"
+        ]
+        subprocess.run(["python", "train.py"] + args_train)
+        kill_carla_server()
+        # Run evaluation
+        print(f"Evaluating experiment {config} with {steps} steps\n")
+        print(f"model path: {get_last_model_path()}")
+        last_model_path = get_last_model_path()
+        args_eval = [
+            "--config", config,
+            "--model", last_model_path,
+        ]
 
-    subprocess.run(["python", "eval.py"] + args_eval)
+        subprocess.run(["python", "eval.py"] + args_eval)
+
+
+if __name__ == "__main__":
+    main()

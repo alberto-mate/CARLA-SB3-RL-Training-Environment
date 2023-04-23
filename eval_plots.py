@@ -2,9 +2,8 @@ import os
 
 import pandas as pd
 import matplotlib.pyplot as plt
-
+import numpy as np
 import argparse
-
 
 
 def plot_eval(eval_csv_paths, output_name=None):
@@ -100,6 +99,61 @@ def plot_eval(eval_csv_paths, output_name=None):
     plt.savefig(eval_plot_path)
 
 
+def summary_eval(eval_csv_path):
+    df = pd.read_csv(eval_csv_path)
+    df_route = df[df['model_id'] == 'route']
+    df = df[df['model_id'] != 'route']
+    df = df.drop(['model_id', 'route_x', 'route_y'], axis=1)
+
+    # Get the total distance traveled from each episode based on last row
+    df_distance = df.groupby(['episode'], as_index=False).last()[['episode', 'distance']].rename(
+        columns={'distance': 'total_distance'})
+
+    # Get the total reward from each episode summing all the rewards
+    df_reward = df.groupby(['episode'], as_index=False).sum()[['episode', 'reward']].rename(columns={'reward': 'total_reward'})
+
+    # Get the mean and std from: speed, center_dev and reward
+    df_mean_std = df.groupby(['episode'], as_index=False).agg(
+        {'speed': ['mean', 'std'], 'center_dev': ['mean', 'std'], 'reward': ['mean', 'std']})
+    df_mean_std.columns = ['episode', 'speed_mean', 'speed_std', 'center_dev_mean', 'center_dev_std', 'reward_mean', 'reward_std']
+
+    # Calculate if the episode was successful based on the distance between waypoints and the vehicle of the last row
+
+    # First from the route dataframe get the last row of each episode
+    df_waypoint = df_route.groupby(['episode'], as_index=False).last()[['episode', 'route_x', 'route_y']]
+    df_success = df.groupby(['episode'], as_index=False).last()[['episode', 'vehicle_location_x', 'vehicle_location_y']]
+    df_success = pd.merge(df_success, df_waypoint, on='episode')
+
+    # If the distance between the last waypoint and the vehicle is less than 5 meters, the episode was successful
+    df_success['success'] = df_success.apply(
+        lambda x: eucldist(x['vehicle_location_x'], x['vehicle_location_y'], x['route_x'], x['route_y']) < 5, axis=1)
+    df_success = df_success[['episode', 'success']]
+    # Merge all the dataframes
+    df_summary = pd.merge(df_distance, df_reward, on='episode')
+    df_summary = pd.merge(df_summary, df_mean_std, on='episode')
+    df_summary = pd.merge(df_summary, df_success, on='episode')
+
+    # Turn the episode column into a string
+    df_summary['episode'] = df_summary['episode'].astype(str)
+
+    # Create a new row called where the episode is total with the mean of all the columns except total reward and total distance without modifying the index
+    df_summary.loc['total'] = df_summary.mean(numeric_only=True)
+    df_summary.loc['total', 'episode'] = 'total'
+    df_summary.loc['total', 'total_reward'] = df_summary['total_reward'].sum()
+    df_summary.loc['total', 'total_distance'] = df_summary['total_distance'].sum()
+
+    # For the success column calculate the percentage of successful episodes.
+    df_summary.loc['total', 'success'] = df_summary['success'].value_counts()[True] / len(df_summary['success'])
+
+    output_path = eval_csv_path.replace("eval.csv", "eval_summary.csv")
+    df_summary.to_csv(output_path, index=False)
+    print(f"Saving summary to {output_path}")
+
+
+def eucldist(x1, y1, x2, y2):
+    return np.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2)
+
+
 def main():
     parser = argparse.ArgumentParser(description="Compare evaluation results from different models")
     parser.add_argument("--models", nargs='+', type=str, default="", help="Path to a model evaluate")
@@ -113,7 +167,5 @@ def main():
     plot_eval(eval_csv_paths, output_name="+".join(compare_models))
 
 
-
 if __name__ == '__main__':
     main()
-  
