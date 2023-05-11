@@ -4,6 +4,8 @@ import subprocess
 import argparse
 import carla
 import time
+
+from carla_env.navigation.planner import compute_route_waypoints
 from carla_env.wrappers import *
 
 
@@ -47,6 +49,7 @@ class CarlaBirdView:
         self.done = False
         self.extra_info = []
         self.world = None
+        self.route_waypoints = None
         try:
             # Connect to carla
             self.client = carla.Client(host, port)
@@ -85,6 +88,25 @@ class CarlaBirdView:
             self.world.debug.draw_string(point.location + carla.Location(x=sign_x * 3, y=sign_y * 3, z=2), str(i),
                                          color=carla.Color(0, 0, 255), life_time=2.0)
 
+    def render_route(self, route):
+        spawn_points_list = [self.world.map.get_spawn_points()[index] for index in route]
+        for i, point in enumerate(spawn_points_list):
+            number = route[i]
+            begin = point.location + carla.Location(z=1.25)
+            angle = math.radians(point.rotation.yaw)
+            sign_x = -np.sin(angle)
+            sign_y = np.cos(angle)
+            end = begin + carla.Location(x=math.cos(angle), y=math.sin(angle))
+            color_point = carla.Color(0, 255, 0) if i == 0 else carla.Color(255, 0, 0)
+            self.world.debug.draw_arrow(begin, end, arrow_size=1, life_time=0, thickness=0.5, color=color_point)
+            self.world.debug.draw_string(point.location + carla.Location(x=sign_x * 3, y=sign_y * 3, z=2), str(number),
+                                         color=carla.Color(0, 0, 255), life_time=2.0)
+
+        if self.route_waypoints is None:
+            start_wp, end_wp = [self.world.map.get_waypoint(spawn.location) for spawn in spawn_points_list]
+            self.route_waypoints = compute_route_waypoints(self.world.map, start_wp, end_wp, resolution=1.0)
+        self._draw_path_server(skip=3)
+
     def step(self):
         if self.is_done():
             raise Exception("Step called after CarlaDataCollector was done.")
@@ -93,6 +115,31 @@ class CarlaBirdView:
 
     def is_done(self):
         return self.done
+
+    def _draw_path_server(self, life_time=60.0, skip=0):
+        """
+            Draw a connected path from start of route to end.
+            Green node = start
+            Red node   = point along path
+            Blue node  = destination
+        """
+        for i in range(0, len(self.route_waypoints) - 1, skip + 1):
+            z = 1.25
+            w0 = self.route_waypoints[i][0]
+            w1 = self.route_waypoints[i + 1][0]
+            self.world.debug.draw_line(
+                w0.transform.location + carla.Location(z=z),
+                w1.transform.location + carla.Location(z=z),
+                thickness=0.01, color=carla.Color(255, 0, 0),
+                life_time=life_time, persistent_lines=False)
+            self.world.debug.draw_point(
+                w0.transform.location + carla.Location(z=z), 0.1,
+                carla.Color(0, 255, 0) if i == 0 else carla.Color(0, 0, 255),
+                life_time, False)
+        self.world.debug.draw_point(
+            self.route_waypoints[-1][0].transform.location + carla.Location(z=z), 0.1,
+            carla.Color(0, 0, 255),
+            life_time, False)
 
 
 if __name__ == "__main__":
@@ -105,11 +152,17 @@ if __name__ == "__main__":
     # Create vehicle and actors for data collecting
     env = CarlaBirdView(host=args.host, port=args.port, fps=args.fps, start_carla=True)
 
+    render_route_waypoints = ()
+
     # While there are more images to collect
     while not env.is_done():
         # Take action
         env.step()
-        env.render()
+        if len(render_route_waypoints) == 0:
+            env.render()
+        else:
+            env.render_route(render_route_waypoints)
+
 
     # Destroy carla actors
     env.close()
