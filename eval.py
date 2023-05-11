@@ -62,7 +62,6 @@ def run_eval(env, model, model_path=None, record_video=False):
     print("Episode ", episode_idx)
     while episode_idx < 4:
         env.extra_info.append("Evaluation")
-
         action, _states = model.predict(state, deterministic=True)
         state, reward, dones, info = env.step(action)
         if env.step_count >= 150 and env.current_waypoint_index == 0:

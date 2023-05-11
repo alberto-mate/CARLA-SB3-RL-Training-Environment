@@ -2,12 +2,34 @@ import subprocess
 import time
 import os
 
-experiments = [
-    ("3", 2_000),
+experiments_1to6 = [
+    ("1", 300_000),
+    ("2", 300_000),
+    ("3", 300_000),
+    ("4", 1_000_000),
+    ("5", 1_000_000),
+    ("6", 1_000_000),
 ]
 
+experiments_7to11 = [
+    ("7", 1_000_000),
+    ("8", 1_000_000),
+    ("9", 1_000_000),
+    ("10", 1_000_000),
+    ("11", 1_000_000),
+]
+
+experiments_12to15 = [
+    ("12", 1000),
+    ("13", 1_000_000),
+    ("14", 1_000_000),
+    ("15", 1_000_000)
+]
+
+experiments = experiments_12to15
+
 root_dir = 'tensorboard'
-os.environ["CARLA_ROOT"] = "/home/albertomate/Documentos/carla"
+os.environ["CARLA_ROOT"] = "/home/amate/CARLA_0.9.13"
 os.environ["SDL_VIDEODRIVER"] = "dummy"
 
 

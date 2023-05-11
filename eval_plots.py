@@ -143,7 +143,10 @@ def summary_eval(eval_csv_path):
     df_summary.loc['total', 'total_distance'] = df_summary['total_distance'].sum()
 
     # For the success column calculate the percentage of successful episodes.
-    df_summary.loc['total', 'success'] = df_summary['success'].value_counts()[True] / len(df_summary['success'])
+    if True in df_summary['success'].unique():
+        df_summary.loc['total', 'success'] = df_summary['success'].value_counts()[True] / len(df_summary['success'])
+    else:
+        df_summary.loc['total', 'success'] = 0
 
     output_path = eval_csv_path.replace("eval.csv", "eval_summary.csv")
     df_summary.to_csv(output_path, index=False)

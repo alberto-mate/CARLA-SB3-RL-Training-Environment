@@ -43,7 +43,7 @@ states = {
     "1": ["steer", "throttle", "speed", "angle_next_waypoint", "maneuver"],
     "2": ["steer", "throttle", "speed", "maneuver"],
     "3": ["steer", "throttle", "speed", "waypoints"],
-    "4": ["steer", "throttle", "speed", "angle_next_waypoint", "maneuver", "distance_goal"],
+    "4": ["steer", "throttle", "speed", "angle_next_waypoint", "maneuver", "distance_goal"]
 }
 
 reward_params = {
@@ -57,6 +57,16 @@ reward_params = {
         max_angle_center_lane=90,
         penalty_reward=-10,
     ),
+     "reward_fn_5_no_early_stop": dict(
+         early_stop=False,
+         min_speed=20.0,  # km/h
+         max_speed=35.0,  # km/h
+         target_speed=25.0,  # kmh
+         max_distance=3.0,  # Max distance from center before terminating
+         max_std_center_lane=0.4,
+         max_angle_center_lane=90,
+         penalty_reward=-10,
+     ),
 }
 
 _CONFIG_1 = {
@@ -136,6 +146,122 @@ _CONFIG_6 = {
     "seed": 100,
     "wrappers": []
 }
+_CONFIG_7 = {
+    "algorithm": "SAC",
+    "algorithm_params": algorithm_params["SAC"],
+    "state": states["1"],
+    "vae_model": "vae_64_augmentation",
+    "action_smoothing": 0.75,
+    "reward_fn": "reward_fn5",
+    "reward_params": reward_params["reward_fn_5_default"],
+    "obs_res": (160, 80),
+    "seed": 100,
+    "wrappers": []
+}
+
+_CONFIG_8 = {
+    "algorithm": "SAC",
+    "algorithm_params": algorithm_params["SAC"],
+    "state": states["1"],
+    "vae_model": "vae_64",
+    "action_smoothing": 0,
+    "reward_fn": "reward_fn5",
+    "reward_params": reward_params["reward_fn_5_default"],
+    "obs_res": (160, 80),
+    "seed": 100,
+    "wrappers": []
+}
+
+_CONFIG_9 = {
+    "algorithm": "SAC",
+    "algorithm_params": algorithm_params["SAC"],
+    "state": states["1"],
+    "vae_model": "vae_64",
+    "action_smoothing": 0.75,
+    "reward_fn": "reward_fn5",
+    "reward_params": reward_params["reward_fn_5_no_early_stop"],
+    "obs_res": (160, 80),
+    "seed": 100,
+    "wrappers": []
+}
+
+_CONFIG_10 = {
+    "algorithm": "SAC",
+    "algorithm_params": algorithm_params["SAC"],
+    "state": states["2"],
+    "vae_model": "vae_64", # Cambiar mejor VAE
+    "action_smoothing": 0.75,
+    "reward_fn": "reward_fn5",
+    "reward_params": reward_params["reward_fn_5_default"],
+    "obs_res": (160, 80),
+    "seed": 100,
+    "wrappers": []
+}
+
+_CONFIG_11 = {
+    "algorithm": "SAC",
+    "algorithm_params": algorithm_params["SAC"],
+    "state": states["4"],
+    "vae_model": "vae_64", # Cambiar mejor VAE
+    "action_smoothing": 0.75,
+    "reward_fn": "reward_fn5",
+    "reward_params": reward_params["reward_fn_5_default"],
+    "obs_res": (160, 80),
+    "seed": 100,
+    "wrappers": []
+}
+
+_CONFIG_12 = {
+    "algorithm": "SAC",
+    "algorithm_params": algorithm_params["SAC"],
+    "state": states["2"],
+    "vae_model": "vae_64_augmentation",
+    "action_smoothing": 0.75,
+    "reward_fn": "reward_fn5",
+    "reward_params": reward_params["reward_fn_5_default"],
+    "obs_res": (160, 80),
+    "seed": 100,
+    "wrappers": []
+}
+
+_CONFIG_13 = {
+    "algorithm": "SAC",
+    "algorithm_params": algorithm_params["SAC"],
+    "state": states["2"],
+    "vae_model": "vae_64_augmentation",
+    "action_smoothing": 0.75,
+    "reward_fn": "reward_fn5",
+    "reward_params": reward_params["reward_fn_5_default"],
+    "obs_res": (160, 80),
+    "seed": 100,
+    "wrappers": ["HistoryWrapperObsDict_5"]
+}
+
+_CONFIG_14 = {
+    "algorithm": "SAC",
+    "algorithm_params": algorithm_params["SAC"],
+    "state": states["2"],
+    "vae_model": "vae_64_augmentation",
+    "action_smoothing": 0.75,
+    "reward_fn": "reward_fn5",
+    "reward_params": reward_params["reward_fn_5_default"],
+    "obs_res": (160, 80),
+    "seed": 100,
+    "wrappers": ["FrameSkip_3"]
+}
+
+_CONFIG_15 = {
+    "algorithm": "SAC",
+    "algorithm_params": algorithm_params["SAC"],
+    "state": states["2"],
+    "vae_model": "vae_64_augmentation",
+    "action_smoothing": 0.75,
+    "reward_fn": "reward_fn5",
+    "reward_params": reward_params["reward_fn_5_default"],
+    "obs_res": (160, 80),
+    "seed": 100,
+    "wrappers": ["FrameSkip_3", "HistoryWrapperObsDict_5"]
+}
 
 CONFIGS = {
     "1": _CONFIG_1,
@@ -144,6 +270,15 @@ CONFIGS = {
     "4": _CONFIG_4,
     "5": _CONFIG_5,
     "6": _CONFIG_6,
+    "7": _CONFIG_7,
+    "8": _CONFIG_8,
+    "9": _CONFIG_9,
+    "10": _CONFIG_10,
+    "11": _CONFIG_11,
+    "12": _CONFIG_12,
+    "13": _CONFIG_13,
+    "14": _CONFIG_14,
+    "15": _CONFIG_15
 }
 CONFIG = None
 

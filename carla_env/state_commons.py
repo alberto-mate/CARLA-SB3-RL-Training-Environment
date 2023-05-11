@@ -123,7 +123,7 @@ def create_encode_state_fn(vae, measurements_to_include):
             end_wp_location = vector(env.end_wp.transform.location)
             encoded_state['end_wp_fixed'] = get_displacement_vector(vehicle_location, end_wp_location, theta)[:2]
         if measure_flags[10]:
-            encoded_state['distance_goal'] = len(env.route_waypoints) - env.current_waypoint_index
+            encoded_state['distance_goal'] = [[len(env.route_waypoints) - env.current_waypoint_index]]
 
         return encoded_state
 
