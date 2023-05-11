@@ -1,0 +1,12 @@
+{
+    "algorithm": "PPO",
+    "algorithm_params": "{'learning_rate': 'lr_schedule(0.0001, 1e-06, 2)', 'gamma': '0.98', 'gae_lambda': '0.95', 'clip_range': '0.2', 'ent_coef': '0.05', 'n_epochs': '10', 'n_steps': '1024', 'policy_kwargs': \"{'activation_fn': <class 'torch.nn.modules.activation.ReLU'>, 'net_arch': [{'pi': [500, 300], 'vf': [500, 300]}]}\"}",
+    "state": "['steer', 'throttle', 'speed', 'waypoints']",
+    "vae_model": "vae_64",
+    "action_smoothing": "0.75",
+    "reward_fn": "reward_fn5",
+    "reward_params": "{'early_stop': 'True', 'min_speed': '20.0', 'max_speed': '35.0', 'target_speed': '25.0', 'max_distance': '3.0', 'max_std_center_lane': '0.4', 'max_angle_center_lane': '90', 'penalty_reward': '-10'}",
+    "obs_res": "(160, 80)",
+    "seed": "100",
+    "wrappers": "[]"
+}
