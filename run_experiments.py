@@ -41,10 +41,17 @@ def kill_carla_server():
     time.sleep(4)
 
 
-def get_last_model_path():
+def get_last_model_path(id_config):
     # Get the last model path based after sorting
     dirs = os.listdir(root_dir)
-    temp_path = os.path.join(root_dir, sorted(dirs)[-1])
+    temp_path = None
+    for dir in sorted(dirs, reverse=True):
+        id_dir = dir.split('_')[-1][2:]
+        if id_config == id_dir:
+            temp_path = os.path.join(root_dir, dir)
+            break
+    if temp_path is None:
+        raise Exception('Model not found')
     dirs = os.listdir(temp_path)
 
     # Check all the .zip files and get the last one
@@ -78,7 +85,7 @@ def main():
         kill_carla_server()
         # Run evaluation
         print(f"Evaluating experiment {config} with {steps} steps\n")
-        print(f"model path: {get_last_model_path()}")
+        print(f"model path: {get_last_model_path(config)}")
         last_model_path = get_last_model_path()
         args_eval = [
             "--config", config,

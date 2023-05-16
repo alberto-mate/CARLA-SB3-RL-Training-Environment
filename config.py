@@ -214,7 +214,7 @@ _CONFIG_11 = {
 _CONFIG_12 = {
     "algorithm": "SAC",
     "algorithm_params": algorithm_params["SAC"],
-    "state": states["2"],
+    "state": states["1"],
     "vae_model": "vae_64_augmentation",
     "action_smoothing": 0.75,
     "reward_fn": "reward_fn5",
@@ -227,7 +227,7 @@ _CONFIG_12 = {
 _CONFIG_13 = {
     "algorithm": "SAC",
     "algorithm_params": algorithm_params["SAC"],
-    "state": states["2"],
+    "state": states["1"],
     "vae_model": "vae_64_augmentation",
     "action_smoothing": 0.75,
     "reward_fn": "reward_fn5",
@@ -240,7 +240,7 @@ _CONFIG_13 = {
 _CONFIG_14 = {
     "algorithm": "SAC",
     "algorithm_params": algorithm_params["SAC"],
-    "state": states["2"],
+    "state": states["1"],
     "vae_model": "vae_64_augmentation",
     "action_smoothing": 0.75,
     "reward_fn": "reward_fn5",
@@ -253,7 +253,7 @@ _CONFIG_14 = {
 _CONFIG_15 = {
     "algorithm": "SAC",
     "algorithm_params": algorithm_params["SAC"],
-    "state": states["2"],
+    "state": states["1"],
     "vae_model": "vae_64_augmentation",
     "action_smoothing": 0.75,
     "reward_fn": "reward_fn5",
