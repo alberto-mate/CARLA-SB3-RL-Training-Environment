@@ -1,0 +1,12 @@
+{
+    "algorithm": "SAC",
+    "algorithm_params": "{'learning_rate': 'lr_schedule(0.0005, 1e-06, 2)', 'buffer_size': '300000', 'batch_size': '256', 'ent_coef': 'auto', 'gamma': '0.98', 'tau': '0.02', 'train_freq': '64', 'gradient_steps': '64', 'learning_starts': '10000', 'use_sde': 'True', 'policy_kwargs': \"{'log_std_init': -3, 'net_arch': [400, 300], 'use_sde': True}\"}",
+    "state": "['steer', 'throttle', 'speed', 'angle_next_waypoint', 'maneuver']",
+    "vae_model": "vae_64_augmentation",
+    "action_smoothing": "0.75",
+    "reward_fn": "reward_fn5",
+    "reward_params": "{'early_stop': 'True', 'min_speed': '20.0', 'max_speed': '35.0', 'target_speed': '25.0', 'max_distance': '3.0', 'max_std_center_lane': '0.4', 'max_angle_center_lane': '90', 'penalty_reward': '-10'}",
+    "obs_res": "(160, 80)",
+    "seed": "100",
+    "wrappers": "['HistoryWrapperObsDict_5']"
+}
