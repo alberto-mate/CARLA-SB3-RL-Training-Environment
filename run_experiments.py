@@ -26,7 +26,10 @@ experiments_12to15 = [
     ("15", 1_000_000)
 ]
 
-experiments = experiments_12to15
+experiments = [
+    ("14", 1_000_000),
+    ("15", 1_000_000)
+]
 
 root_dir = 'tensorboard'
 os.environ["CARLA_ROOT"] = "/home/amate/CARLA_0.9.13"
@@ -42,7 +45,6 @@ def kill_carla_server():
 
 
 def get_last_model_path(id_config):
-    # Get the last model path based after sorting
     dirs = os.listdir(root_dir)
     temp_path = None
     for dir in sorted(dirs, reverse=True):
@@ -81,12 +83,13 @@ def main():
             "--total_timesteps", str(steps),
             "--no_render"
         ]
-        subprocess.run(["python", "train.py"] + args_train)
+        # subprocess.run(["python", "train.py"] + args_train)
         kill_carla_server()
         # Run evaluation
         print(f"Evaluating experiment {config} with {steps} steps\n")
-        print(f"model path: {get_last_model_path(config)}")
-        last_model_path = get_last_model_path()
+        last_model_path = get_last_model_path(config)
+        print(f"model path: {last_model_path}")
+
         args_eval = [
             "--config", config,
             "--model", last_model_path,

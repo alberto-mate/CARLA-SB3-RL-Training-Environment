@@ -42,8 +42,8 @@ def run_eval(env, model, model_path=None, record_video=False):
     rendered_frame = env.render(mode="rgb_array")
 
     columns = ["model_id", "episode", "step", "throttle", "steer", "vehicle_location_x", "vehicle_location_y",
-               "reward", "distance", "speed", "center_dev", "angle_next_waypoint", "waypoint_x", "waypoint_y", "route_x",
-               "route_y"]
+               "reward", "distance", "speed", "center_dev", "angle_next_waypoint", "waypoint_x", "waypoint_y",
+               "route_x", "route_y"]
     df = pd.DataFrame(columns=columns)
 
     # Init video recording
@@ -60,6 +60,7 @@ def run_eval(env, model, model_path=None, record_video=False):
     episode_idx = 0
     # While non-terminal state
     print("Episode ", episode_idx)
+    saved_route = False
     while episode_idx < 4:
         env.extra_info.append("Evaluation")
         action, _states = model.predict(state, deterministic=True)
@@ -68,7 +69,7 @@ def run_eval(env, model, model_path=None, record_video=False):
             dones = True
 
         # Save route at the beginning of the episode
-        if env.step_count == 2:
+        if not saved_route:
             initial_heading = np.deg2rad(env.vehicle.get_transform().rotation.yaw)
             initial_vehicle_location = vector(env.vehicle.get_location())
             # Save the route to plot them later
@@ -79,6 +80,7 @@ def run_eval(env, model, model_path=None, record_video=False):
                 new_row = pd.DataFrame([['route', env.episode_idx, route_relative[0], route_relative[1]]],
                                        columns=["model_id", "episode", "route_x", "route_y"])
                 df = pd.concat([df, new_row], ignore_index=True)
+            saved_route = True
 
         vehicle_relative = get_displacement_vector(initial_vehicle_location, vector(env.vehicle.get_location()),
                                                    initial_heading)
@@ -102,6 +104,7 @@ def run_eval(env, model, model_path=None, record_video=False):
         if dones:
             state = env.reset()
             episode_idx += 1
+            saved_route = False
             print("Episode ", episode_idx)
 
     # Release video
@@ -133,7 +136,8 @@ if __name__ == "__main__":
                         observation_space=observation_space,
                         encode_state_fn=encode_state_fn, decode_vae_fn=decode_vae_fn,
                         fps=args["fps"], action_smoothing=CONFIG["action_smoothing"],
-                        action_space_type='continuous', activate_spectator=True, eval=True, activate_render=args["no_render"])
+                        action_space_type='continuous', activate_spectator=True, eval=True,
+                        activate_render=args["no_render"])
 
     for wrapper_class_str in CONFIG["wrappers"]:
         wrap_class, wrap_params = parse_wrapper_class(wrapper_class_str)
