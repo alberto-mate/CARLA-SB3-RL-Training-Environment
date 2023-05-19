@@ -25,11 +25,8 @@ experiments_12to15 = [
     ("14", 1_000_000),
     ("15", 1_000_000)
 ]
-
-experiments = [
-    ("14", 1_000_000),
-    ("15", 1_000_000)
-]
+best = [("BEST", 4_000_000)]
+experiments = best
 
 root_dir = 'tensorboard'
 os.environ["CARLA_ROOT"] = "/home/amate/CARLA_0.9.13"
@@ -83,7 +80,7 @@ def main():
             "--total_timesteps", str(steps),
             "--no_render"
         ]
-        # subprocess.run(["python", "train.py"] + args_train)
+        subprocess.run(["python", "train.py"] + args_train)
         kill_carla_server()
         # Run evaluation
         print(f"Evaluating experiment {config} with {steps} steps\n")
