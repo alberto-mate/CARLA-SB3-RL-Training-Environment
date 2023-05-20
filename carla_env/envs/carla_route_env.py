@@ -133,6 +133,8 @@ class CarlaRouteEnv(gym.Env):
             settings.synchronous_mode = True
             self.world.apply_settings(settings)
             self.client.reload_world(False)  # reload map keeping the world settings
+            self.world.set_weather(carla.WeatherParameters.MidRainyNoon)
+
 
             # Create vehicle and attach camera to it
             self.vehicle = Vehicle(self.world, self.world.map.get_spawn_points()[0],
