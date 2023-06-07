@@ -62,8 +62,8 @@ torch.backends.cudnn.benchmark = True
 device = torch.device("cuda" if cuda else "cpu")
 print("Using device", device)
 # Define the location of the image directory
-image_rgb = '/home/albertomate/Documentos/carla/PythonAPI/my-carla/vae/images/rgb'
-image_seg = '/home/albertomate/Documentos/carla/PythonAPI/my-carla/vae/images/segmentation'
+image_rgb = './vae/images/rgb'
+image_seg = './vae/images/segmentation'
 
 # check vae dir exists, if not, create it
 vae_dir = join(args.logdir, f'vae_{LSIZE}_v1')
