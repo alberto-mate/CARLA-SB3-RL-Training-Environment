@@ -29,7 +29,6 @@ best = [("BEST", 4_000_000)]
 experiments = best
 
 root_dir = 'tensorboard'
-os.environ["CARLA_ROOT"] = "/home/amate/CARLA_0.9.13"
 os.environ["SDL_VIDEODRIVER"] = "dummy"
 
 
