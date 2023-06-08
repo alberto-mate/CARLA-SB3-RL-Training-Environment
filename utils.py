@@ -4,6 +4,7 @@ import json
 
 import gym
 import numpy as np
+import pygame
 from stable_baselines3.common.callbacks import BaseCallback
 from stable_baselines3.common.logger import HParam
 
@@ -94,6 +95,30 @@ class TensorboardCallback(BaseCallback):
             self.logger.record("custom/mean_reward", self.locals['infos'][0]['mean_reward'])
             self.logger.dump(self.num_timesteps)
         return True
+
+class VideoRecorderCallback(BaseCallback):
+    def __init__(self, video_path, frame_size, video_length=-1, fps=30, skip_frame=1, verbose=0):
+        super().__init__(verbose)
+        self.video_recorder = VideoRecorder(video_path, frame_size, fps)
+        self.max_length = video_length
+        self.skip_frame = skip_frame
+
+    def _on_step(self) -> bool:
+        # Add frame to video
+        if self.max_length != -1 and self.num_timesteps > self.max_length:
+            self.video_recorder.release()
+            return False
+        # Skip every 4 frames to reduce video size
+        if self.num_timesteps % self.skip_frame != 0:
+            return True
+        display = self.training_env.unwrapped.envs[0].env.display
+        frame = np.array(pygame.surfarray.array3d(display), dtype=np.uint8).transpose([1, 0, 2])
+
+        self.video_recorder.add_frame(frame)
+        return True
+
+    def _on_training_end(self) -> None:
+        self.video_recorder.release()
 
 
 def lr_schedule(initial_value: float, end_value: float, rate: float):

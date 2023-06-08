@@ -38,7 +38,7 @@ class CarlaRouteEnv(gym.Env):
     }
 
     def __init__(self, host="127.0.0.1", port=2000,
-                 viewer_res=(600, 560), obs_res=(160, 80),
+                 viewer_res=(1120, 560), obs_res=(160, 80),
                  reward_fn=None,
                  observation_space=None,
                  encode_state_fn=None, decode_vae_fn=None,
