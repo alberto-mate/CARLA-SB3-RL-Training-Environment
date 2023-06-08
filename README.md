@@ -1,6 +1,6 @@
 # CARLA-SB3-RL-Training-Environment
 <p align="center">
-  <img width="70%" src="docs/images/hud.png">
+  <img width="70%" src="docs/images/rl_train.gif">
 </p>
 
 
