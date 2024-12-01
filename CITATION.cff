@@ -1,0 +1,9 @@
+cff-version: 1.2.0
+message: "If you use this work, please cite it as below."
+title: "CARLA-SB3-RL-Training-Environment: out-of-the-box training and evaluation environment for DRL in CARLA simulator"
+authors:
+  - family-names: "Mate Angulo"
+    given-names: "Alberto"
+date-released: 2023-06-20
+version: "1.0.0"
+url: "https://github.com/alberto-mate/CARLA-SB3-RL-Training-Environment"
