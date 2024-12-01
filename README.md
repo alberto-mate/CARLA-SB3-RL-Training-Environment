@@ -97,12 +97,12 @@ python carla_env/envs/collect_data_rl_env.py
 If you use this repo, please cite this project.
 
 ```
-@software{Mate_Angulo_CARLA-SB3-RL-Training-Environment_out-of-the-box_training_2023,
-  author  = {Mate Angulo, Alberto},
-  title   = {{CARLA-SB3-RL-Training-Environment: out-of-the-box training and evaluation environment for DRL in CARLA simulator}},
-  year    = {2023},
-  month   = jun,
+@software{Mate_CARLA-SB3-RL-Training-Environment_out-of-the-box_training_2023,
+  author = {Mate, Alberto},
+  month = jun,
+  title = {{CARLA-SB3-RL-Training-Environment: out-of-the-box training and evaluation environment for DRL in CARLA simulator}},
+  url = {https://github.com/alberto-mate/CARLA-SB3-RL-Training-Environment},
   version = {1.0.0},
-  url     = {https://github.com/alberto-mate/CARLA-SB3-RL-Training-Environment}
+  year = {2023}
 }
 ```
