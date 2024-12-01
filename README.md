@@ -93,3 +93,14 @@ To collect data from CARLA automatically using a RL agent in early stages, run:
 ```bash
 python carla_env/envs/collect_data_rl_env.py
 ```
+## 📑 Citation
+If you use this repo, please cite this project.
+
+```
+@misc{carla_sb3_rl_training_environment,
+  title   = {CARLA-SB3-RL-Training-Environment: out-of-the-box training and evaluation environment for DRL in CARLA simulator},
+  author  = {Mate Angulo, Alberto},
+  year    = {2023},
+  url     = {https://github.com/alberto-mate/CARLA-SB3-RL-Training-Environment},
+}
+```
